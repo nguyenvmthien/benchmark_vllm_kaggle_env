@@ -1,5 +1,5 @@
 [project]
-name = "benchmark-vllm"
+name = "infercap"
 version = "0.2.0"
 description = "Concurrency and saturation benchmark for OpenAI-compatible vLLM servers"
 readme = "README.md"
