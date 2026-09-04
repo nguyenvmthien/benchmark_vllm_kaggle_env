@@ -22,12 +22,117 @@ models against currently free VRAM, and reports the likely vLLM runner:
     uv run python src/scripts/check_runable.py Qwen
     uv run python src/scripts/check_runable.py --family Qwen --recommend-limit 10
 
-Use `--runner generate|pooling|transcription` only when you need to override vLLM's automatic
+Use `--runner generate|pooling|draft` only when you need to override vLLM's automatic
 runner selection. Family discovery requires Hub access; exact cached model checks support `--offline`.
 
-Also verify a running OpenAI-compatible endpoint:
+The generated serve command uses a balanced inference profile by default: prefix caching, chunked
+prefill, reproducible vLLM generation defaults, automatic KV-cache dtype, 64 concurrent sequences,
+and an 8192-token scheduler budget. Select another goal with `--profile safe|latency|throughput`,
+or override `--max-num-seqs` and `--max-num-batched-tokens` directly. Disable either optimization
+with `--no-enable-prefix-caching` or `--no-enable-chunked-prefill`.
 
-    uv run python src/scripts/check_runable.py --check-server --json
+### Copy-paste examples
+
+Discover the best Qwen checkpoint for the GPUs that are currently free, using the balanced profile:
+
+```bash
+uv run python src/scripts/check_runable.py Qwen
+```
+
+Inspect more Hub candidates and print the ten best recommendations:
+
+```bash
+uv run python src/scripts/check_runable.py \
+  --family Qwen \
+  --family-candidates 80 \
+  --recommend-limit 10
+```
+
+Check an exact instruction model with conservative scheduler limits:
+
+```bash
+uv run python src/scripts/check_runable.py \
+  --model Qwen/Qwen2.5-7B-Instruct \
+  --profile safe \
+  --max-model-len 4096
+```
+
+Check an AWQ checkpoint for two GPUs. Quantization is normally detected from the checkpoint, but it
+can be made explicit for private or incomplete model metadata:
+
+```bash
+uv run python src/scripts/check_runable.py \
+  --model Qwen/Qwen2.5-7B-Instruct-AWQ \
+  --quantization awq \
+  --tensor-parallel-size 2 \
+  --dtype float16 \
+  --profile balanced
+```
+
+Tune for low latency or maximum throughput:
+
+```bash
+# Lower scheduler queue/batch limits for more predictable latency.
+uv run python src/scripts/check_runable.py Qwen --profile latency
+
+# Larger scheduling limits for an offline or high-throughput service.
+uv run python src/scripts/check_runable.py Qwen --profile throughput
+```
+
+Override scheduler limits directly when the built-in profile is not enough:
+
+```bash
+uv run python src/scripts/check_runable.py Qwen \
+  --profile balanced \
+  --max-num-seqs 96 \
+  --max-num-batched-tokens 12288 \
+  --max-model-len 8192 \
+  --served-model-name qwen
+```
+
+Check an embedding/reranker model by selecting the pooling runner:
+
+```bash
+uv run python src/scripts/check_runable.py \
+  --model Qwen/Qwen3-Embedding-0.6B \
+  --runner pooling \
+  --profile throughput
+```
+
+Disable optimizations when diagnosing model compatibility or scheduler issues:
+
+```bash
+uv run python src/scripts/check_runable.py Qwen \
+  --no-enable-prefix-caching \
+  --no-enable-chunked-prefill
+```
+
+Check a model already available locally without accessing Hugging Face:
+
+```bash
+uv run python src/scripts/check_runable.py \
+  --model ./models/Qwen2.5-7B-Instruct-AWQ \
+  --offline \
+  --model-size-b 7.6 \
+  --quantization awq
+```
+
+Produce machine-readable output for CI or another script:
+
+```bash
+uv run python src/scripts/check_runable.py Qwen --json > preflight.json
+jq '.ready, .selected_model, .inference_recommendation, .recommended_serve_command' preflight.json
+```
+
+Verify a running OpenAI-compatible endpoint:
+
+```bash
+uv run python src/scripts/check_runable.py \
+  --model Qwen/Qwen2.5-7B-Instruct \
+  --check-server \
+  --api-url http://localhost:8000/v1/chat/completions \
+  --json
+```
 
 Model size is automatically read from Hugging Face safetensors metadata. Use --model-size-b only as an override for private or non-safetensors repositories. The memory estimate covers static model weights plus 15% loading overhead. KV cache depends on
 context length, batch shape, architecture, and cache dtype, so it is explicitly not presented as
@@ -59,10 +164,9 @@ Tune these using --min-tps-growth, --max-ttft-p95, and --max-error-rate.
 The recommended operating concurrency is the last healthy level before the trigger. If no trigger
 is found, expand --concurrency.
 
-Outputs are written to benchmark_output/benchmark_<UTC timestamp>.json and .png. Generate a
-dashboard again with:
-
-    uv run python -m src.analyse.visual benchmark_output/benchmark_<timestamp>.json
+The benchmark command is a single pipeline: after all load levels finish, it writes
+benchmark_output/benchmark_<UTC timestamp>.json and immediately renders the matching .png
+dashboard. A plotting failure fails the command instead of silently leaving a partial result.
 
 ## Metric notes
 

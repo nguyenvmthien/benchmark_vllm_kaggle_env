@@ -10,6 +10,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 import aiohttp
 from src.analyse.metrics import distribution, find_saturation
+from src.analyse.visual import plot_report
 from src.benchmark.client import fetch_request
 from src.benchmark.gpu import GPUMonitor
 from src.config.prompts import ALL_PROMPTS
@@ -123,6 +124,7 @@ async def run(config: BenchmarkConfig, output_dir: Path) -> Path:
     path.write_text(json.dumps(report, indent=2), encoding="utf-8")
     print(f"\nSaturation: {saturation['reason']} Recommended concurrency: {saturation['level']}")
     print(f"JSON report: {path}")
+    plot_report(path)
     return path
 
 def parse_levels(value: str) -> list[int]:
@@ -161,12 +163,7 @@ def main() -> None:
         args.requests_per_worker, args.max_tokens, args.timeout, args.warmup_requests,
         args.gpu_sample_interval, args.min_tps_growth, args.max_ttft_p95,
         args.max_error_rate, args.seed)
-    path = asyncio.run(run(config, args.output_dir))
-    try:
-        from src.analyse.visual import plot_report
-        plot_report(path)
-    except ImportError:
-        print("WARNING: matplotlib is not installed; skipped PNG visualization.")
+    asyncio.run(run(config, args.output_dir))
 
 if __name__ == "__main__":
     main()

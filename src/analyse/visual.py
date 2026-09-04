@@ -1,6 +1,5 @@
 """Render benchmark JSON as a compact dashboard."""
 from __future__ import annotations
-import argparse
 import json
 from pathlib import Path
 
@@ -45,13 +44,3 @@ def plot_report(report_path: str | Path, output_path: str | Path | None = None) 
     plt.close(fig)
     print(f"PNG dashboard: {output_path}")
     return output_path
-
-def main() -> None:
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("report", type=Path)
-    parser.add_argument("--output", type=Path)
-    args = parser.parse_args()
-    plot_report(args.report, args.output)
-
-if __name__ == "__main__":
-    main()
