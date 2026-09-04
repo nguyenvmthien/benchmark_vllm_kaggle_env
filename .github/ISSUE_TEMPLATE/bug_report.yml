@@ -1,0 +1,71 @@
+name: Bug report
+description: Report reproducible incorrect behavior in InferCap
+title: "[Bug]: "
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: Thanks for helping improve InferCap. Remove secrets and tokens from logs before submitting.
+  - type: input
+    id: os
+    attributes:
+      label: Operating system
+      placeholder: Ubuntu 24.04
+    validations:
+      required: true
+  - type: input
+    id: python
+    attributes:
+      label: Python version
+      placeholder: Output of python --version
+    validations:
+      required: true
+  - type: input
+    id: infercap
+    attributes:
+      label: InferCap commit or version
+      placeholder: Git commit SHA or package version
+    validations:
+      required: true
+  - type: textarea
+    id: hardware
+    attributes:
+      label: Hardware
+      description: Include GPU model, count, and memory where relevant.
+    validations:
+      required: true
+  - type: input
+    id: runtime
+    attributes:
+      label: Runtime
+      placeholder: vLLM version and relevant configuration
+    validations:
+      required: true
+  - type: textarea
+    id: command
+    attributes:
+      label: Command
+      description: Provide the exact command, with secrets removed.
+      render: shell
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: Include relevant output or stack traces, with secrets removed.
+      render: shell
+    validations:
+      required: true

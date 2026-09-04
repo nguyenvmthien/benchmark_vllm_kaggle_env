@@ -1,0 +1,41 @@
+name: Feature request
+description: Propose an improvement to InferCap
+title: "[Feature]: "
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem or use case
+      description: What are you trying to accomplish, and why is the current behavior insufficient?
+    validations:
+      required: true
+  - type: textarea
+    id: behavior
+    attributes:
+      label: Proposed behavior
+      description: Describe the desired user-visible outcome.
+    validations:
+      required: true
+  - type: textarea
+    id: scope
+    attributes:
+      label: Affected hardware or runtime
+      description: Identify the hardware and inference runtime involved, if any.
+      placeholder: NVIDIA GPU and vLLM
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Describe workarounds or other approaches you evaluated.
+    validations:
+      required: true
+  - type: checkboxes
+    id: architecture
+    attributes:
+      label: Architecture discussion
+      options:
+        - label: I understand significant features and architecture changes should be discussed before implementation.
+          required: true
