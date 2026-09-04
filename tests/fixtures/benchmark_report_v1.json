@@ -1,0 +1,137 @@
+{
+  "schema_version": 1,
+  "created_at": "2026-09-04T12:00:00+00:00",
+  "config": {
+    "api_url": "http://localhost:8000/v1/chat/completions",
+    "model": "example/model",
+    "concurrency_levels": [1, 2],
+    "requests_per_worker": 4,
+    "max_tokens": 128,
+    "timeout": 120,
+    "warmup_requests": 2,
+    "gpu_sample_interval": 0.5,
+    "min_tps_growth": 0.1,
+    "max_ttft_p95": 2.0,
+    "max_error_rate": 0.01,
+    "seed": 42,
+    "mode": "concurrency",
+    "burst_sizes": [16, 32, 64, 128],
+    "request_rates": [1.0, 2.0, 4.0, 8.0],
+    "rate_duration": 30.0,
+    "metrics_url": "http://localhost:8000/metrics",
+    "kv_sample_interval": 0.5,
+    "prompt_profile": "random",
+    "shared_prefix_words": 1024
+  },
+  "levels": [
+    {
+      "concurrency": 1,
+      "load_value": 1,
+      "mode": "concurrency",
+      "requests": 4,
+      "successful_requests": 4,
+      "failed_requests": 0,
+      "error_rate": 0.0,
+      "duration_seconds": 4.0,
+      "output_tokens": 400,
+      "throughput_tps": 100.0,
+      "request_throughput_rps": 1.0,
+      "ttft": {"mean": 0.2, "p50": 0.18, "p95": 0.3, "p99": 0.32},
+      "itl": {"mean": 0.03, "p50": 0.03, "p95": 0.04, "p99": 0.045},
+      "latency": {"mean": 3.0, "p50": 2.9, "p95": 3.4, "p99": 3.5},
+      "gpu": {
+        "available": true,
+        "samples": 8,
+        "avg_utilization_pct": 70.0,
+        "max_utilization_pct": 82,
+        "max_vram_used_mb": 12000,
+        "max_vram_utilization_pct": 78.125
+      },
+      "kv_cache": {
+        "available": true,
+        "samples": 8,
+        "metrics_url": "http://localhost:8000/metrics",
+        "cache_config": {
+          "block_size": "16",
+          "cache_dtype": "auto",
+          "enable_prefix_caching": "True",
+          "gpu_memory_utilization": "0.9"
+        },
+        "prefix_caching_enabled": "True",
+        "kv_cache_dtype": "auto",
+        "block_size": "16",
+        "configured_gpu_memory_utilization": "0.9",
+        "avg_usage_pct": 20.0,
+        "max_usage_pct": 25.0,
+        "prefix_cache_hits": 60.0,
+        "prefix_cache_queries": 100.0,
+        "prefix_cache_hit_rate_pct": 60.0,
+        "preemptions": 0.0,
+        "max_running_requests": 1.0,
+        "max_waiting_requests": 0.0
+      },
+      "warnings": [],
+      "errors": []
+    },
+    {
+      "concurrency": 2,
+      "load_value": 2,
+      "mode": "concurrency",
+      "requests": 8,
+      "successful_requests": 7,
+      "failed_requests": 1,
+      "error_rate": 0.125,
+      "duration_seconds": 7.0,
+      "output_tokens": 735,
+      "throughput_tps": 105.0,
+      "request_throughput_rps": 1.0,
+      "ttft": {"mean": 1.8, "p50": 1.7, "p95": 2.5, "p99": 2.7},
+      "itl": {"mean": 0.05, "p50": 0.05, "p95": 0.07, "p99": 0.08},
+      "latency": {"mean": 6.0, "p50": 5.8, "p95": 7.0, "p99": 7.2},
+      "gpu": {
+        "available": true,
+        "samples": 14,
+        "avg_utilization_pct": 92.0,
+        "max_utilization_pct": 100,
+        "max_vram_used_mb": 14500,
+        "max_vram_utilization_pct": 94.40104166666667
+      },
+      "kv_cache": {
+        "available": true,
+        "samples": 14,
+        "metrics_url": "http://localhost:8000/metrics",
+        "cache_config": {
+          "block_size": "16",
+          "cache_dtype": "auto",
+          "enable_prefix_caching": "True",
+          "gpu_memory_utilization": "0.9"
+        },
+        "prefix_caching_enabled": "True",
+        "kv_cache_dtype": "auto",
+        "block_size": "16",
+        "configured_gpu_memory_utilization": "0.9",
+        "avg_usage_pct": 75.0,
+        "max_usage_pct": 90.0,
+        "prefix_cache_hits": 180.0,
+        "prefix_cache_queries": 200.0,
+        "prefix_cache_hit_rate_pct": 90.0,
+        "preemptions": 1.0,
+        "max_running_requests": 2.0,
+        "max_waiting_requests": 3.0
+      },
+      "warnings": [
+        "Fewer than 20 successful samples; tail percentiles are unstable.",
+        "KV-cache pressure caused 1 preemption(s).",
+        "Error rate exceeded 1%."
+      ],
+      "errors": ["HTTP 503: overloaded"],
+      "tps_growth": 0.05
+    }
+  ],
+  "saturation": {
+    "found": true,
+    "level": 1,
+    "trigger_level": 2,
+    "reason": "error rate 12.5% > 1.0%; TTFT p95 2.500s > 2.000s; TPS growth 5.0% < 10.0%"
+  }
+}
