@@ -13,10 +13,17 @@ A reproducible concurrency sweep for an OpenAI-compatible vLLM endpoint. It reco
 The checker does not import CUDA libraries at startup and gives stable PASS, WARN, and FAIL output.
 Exit status is non-zero only for hard failures, so it can be used in CI.
 
-    uv run python src/scripts/check_runable.py \
-      --model mistralai/Mistral-7B-Instruct-v0.3 \
-      --dtype float16 \
-      --tensor-parallel-size 2
+    uv run python src/scripts/check_runable.py --model mistralai/Mistral-7B-Instruct-v0.3
+
+You can also provide only a model family. The checker searches Hugging Face, filters against the
+vLLM registry installed on this machine, estimates quantized/non-quantized weight memory, ranks
+models against currently free VRAM, and reports the likely vLLM runner:
+
+    uv run python src/scripts/check_runable.py Qwen
+    uv run python src/scripts/check_runable.py --family Qwen --recommend-limit 10
+
+Use `--runner generate|pooling|transcription` only when you need to override vLLM's automatic
+runner selection. Family discovery requires Hub access; exact cached model checks support `--offline`.
 
 Also verify a running OpenAI-compatible endpoint:
 
