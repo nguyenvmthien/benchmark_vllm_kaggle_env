@@ -8,11 +8,13 @@ import time
 from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 from pathlib import Path
+from urllib.parse import urlsplit, urlunsplit
 import aiohttp
 from src.analyse.metrics import distribution, find_saturation
 from src.analyse.visual import plot_report
 from src.benchmark.client import fetch_request
 from src.benchmark.gpu import GPUMonitor
+from src.benchmark.kv_cache import KVCacheMonitor
 from src.config.prompts import ALL_PROMPTS
 
 @dataclass(frozen=True)
@@ -33,9 +35,13 @@ class BenchmarkConfig:
     burst_sizes: list[int] | None = None
     request_rates: list[float] | None = None
     rate_duration: float = 30.0
+    metrics_url: str | None = None
+    kv_sample_interval: float = 0.5
+    prompt_profile: str = "random"
+    shared_prefix_words: int = 1024
 
 def summarize(results: list[dict], elapsed: float, load_value: int | float, gpu: dict,
-              *, mode: str = "concurrency") -> dict:
+              kv_cache: dict, *, mode: str = "concurrency") -> dict:
     valid = [item for item in results if item["success"]]
     tokens = sum(item["output_tokens"] for item in valid)
     return {
@@ -49,12 +55,12 @@ def summarize(results: list[dict], elapsed: float, load_value: int | float, gpu:
         "ttft": distribution(x["ttft"] for x in valid),
         "itl": distribution(x["itl"] for x in valid),
         "latency": distribution(x["latency"] for x in valid),
-        "gpu": gpu,
-        "warnings": build_warnings(results, gpu),
+        "gpu": gpu, "kv_cache": kv_cache,
+        "warnings": build_warnings(results, gpu, kv_cache),
         "errors": [x["error"] for x in results if x["error"]][:10],
     }
 
-def build_warnings(results: list[dict], gpu: dict) -> list[str]:
+def build_warnings(results: list[dict], gpu: dict, kv_cache: dict) -> list[str]:
     warnings: list[str] = []
     successful = sum(x["success"] for x in results)
     if 0 < successful < 20:
@@ -65,17 +71,60 @@ def build_warnings(results: list[dict], gpu: dict) -> list[str]:
         warnings.append("GPU telemetry unavailable (nvidia-smi missing or returned no samples).")
     elif gpu["max_vram_utilization_pct"] >= 95:
         warnings.append("VRAM usage reached at least 95%; OOM risk is high.")
+    if not kv_cache["available"]:
+        warnings.append(f"vLLM KV-cache metrics unavailable: {kv_cache.get('error', 'unknown error')}.")
+    elif kv_cache.get("preemptions"):
+        warnings.append(f"KV-cache pressure caused {kv_cache['preemptions']:.0f} preemption(s).")
+    if kv_cache.get("prefix_caching_enabled", "").lower() == "false":
+        warnings.append("vLLM reports automatic prefix caching is disabled.")
     if results and sum(not x["success"] for x in results) / len(results) > 0.01:
         warnings.append("Error rate exceeded 1%.")
     return warnings
 
+def make_prompts(config: BenchmarkConfig, count: int, rng: random.Random) -> list[str]:
+    if config.prompt_profile == "random":
+        return [rng.choice(ALL_PROMPTS) for _ in range(count)]
+    prefix_seed = (
+        "You are reviewing a production inference system. Preserve all relevant context, "
+        "constraints, terminology, and operational assumptions before answering. "
+    )
+    words = prefix_seed.split()
+    shared_prefix = " ".join(words[index % len(words)] for index in range(config.shared_prefix_words))
+    return [f"{shared_prefix}\n\nRequest {index}: {rng.choice(ALL_PROMPTS)}" for index in range(count)]
+
+async def start_monitors(config: BenchmarkConfig) -> tuple[asyncio.Event, GPUMonitor, KVCacheMonitor,
+                                                        list[asyncio.Task]]:
+    stop = asyncio.Event()
+    gpu = GPUMonitor(config.gpu_sample_interval)
+    kv = KVCacheMonitor(config.metrics_url or "", config.kv_sample_interval)
+    tasks = [asyncio.create_task(gpu.run(stop)), asyncio.create_task(kv.run(stop))]
+    await kv.ready.wait()
+    return stop, gpu, kv, tasks
+
+async def stop_monitors(stop: asyncio.Event, tasks: list[asyncio.Task]) -> None:
+    stop.set()
+    await asyncio.gather(*tasks)
+
+def add_prefix_comparison(summary: dict, results: list[dict], initial_count: int) -> None:
+    initial = [x for x in results[:initial_count] if x["success"]]
+    repeated = [x for x in results[initial_count:] if x["success"]]
+    if not initial or not repeated:
+        return
+    initial_ttft = distribution(x["ttft"] for x in initial)
+    repeated_ttft = distribution(x["ttft"] for x in repeated)
+    baseline = initial_ttft["mean"]
+    summary["shared_prefix_comparison"] = {
+        "initial_requests": len(initial), "repeated_requests": len(repeated),
+        "initial_ttft": initial_ttft, "repeated_ttft": repeated_ttft,
+        "mean_ttft_reduction_pct": (
+            100 * (baseline - repeated_ttft["mean"]) / baseline if baseline else None),
+    }
+
 async def run_level(config: BenchmarkConfig, level: int, rng: random.Random) -> dict:
     request_count = level * config.requests_per_worker
-    prompts = [rng.choice(ALL_PROMPTS) for _ in range(request_count)]
+    prompts = make_prompts(config, request_count, rng)
     semaphore = asyncio.Semaphore(level)
-    stop = asyncio.Event()
-    monitor = GPUMonitor(config.gpu_sample_interval)
-    monitor_task = asyncio.create_task(monitor.run(stop))
+    stop, monitor, kv_monitor, monitor_tasks = await start_monitors(config)
 
     async with aiohttp.ClientSession() as session:
         async def bounded(prompt: str) -> dict:
@@ -85,9 +134,11 @@ async def run_level(config: BenchmarkConfig, level: int, rng: random.Random) -> 
         started = time.perf_counter()
         results = await asyncio.gather(*(bounded(prompt) for prompt in prompts))
         elapsed = time.perf_counter() - started
-    stop.set()
-    await monitor_task
-    summary = summarize(results, elapsed, level, monitor.summary(), mode="concurrency")
+    await stop_monitors(stop, monitor_tasks)
+    summary = summarize(results, elapsed, level, monitor.summary(), kv_monitor.summary(),
+                        mode="concurrency")
+    if config.prompt_profile == "shared-prefix":
+        add_prefix_comparison(summary, results, level)
     print_level(summary)
     return summary
 
@@ -100,10 +151,8 @@ async def run_scheduled_level(config: BenchmarkConfig, value: int | float,
     else:
         request_count = max(1, int(float(value) * config.rate_duration))
         delays = [index / float(value) for index in range(request_count)]
-    prompts = [rng.choice(ALL_PROMPTS) for _ in range(request_count)]
-    stop = asyncio.Event()
-    monitor = GPUMonitor(config.gpu_sample_interval)
-    monitor_task = asyncio.create_task(monitor.run(stop))
+    prompts = make_prompts(config, request_count, rng)
+    stop, monitor, kv_monitor, monitor_tasks = await start_monitors(config)
 
     # Avoid aiohttp's default 100-connection queue masking a large server-side burst.
     connector = aiohttp.TCPConnector(limit=0)
@@ -121,9 +170,12 @@ async def run_scheduled_level(config: BenchmarkConfig, value: int | float,
             scheduled(prompt, delay) for prompt, delay in zip(prompts, delays)
         ))
         elapsed = time.perf_counter() - started
-    stop.set()
-    await monitor_task
-    summary = summarize(results, elapsed, value, monitor.summary(), mode=config.mode)
+    await stop_monitors(stop, monitor_tasks)
+    summary = summarize(results, elapsed, value, monitor.summary(), kv_monitor.summary(),
+                        mode=config.mode)
+    if config.prompt_profile == "shared-prefix":
+        initial_count = int(value) if config.mode == "burst" else 1
+        add_prefix_comparison(summary, results, initial_count)
     if config.mode == "request-rate":
         summary["offered_requests_per_second"] = float(value)
         summary["submission_duration_seconds"] = config.rate_duration
@@ -138,6 +190,18 @@ def print_level(item: dict) -> None:
     print(f"  TTFT p50/p95/p99: {item['ttft']['p50']:.3f}/{item['ttft']['p95']:.3f}/{item['ttft']['p99']:.3f}s")
     print(f"  ITL  p50/p95/p99: {item['itl']['p50']:.4f}/{item['itl']['p95']:.4f}/{item['itl']['p99']:.4f}s")
     print(f"  E2E  p50/p95/p99: {item['latency']['p50']:.3f}/{item['latency']['p95']:.3f}/{item['latency']['p99']:.3f}s")
+    kv = item["kv_cache"]
+    if kv["available"]:
+        hit_rate = kv.get("prefix_cache_hit_rate_pct")
+        print(f"  KV cache avg/max={kv.get('avg_usage_pct')!s}/{kv.get('max_usage_pct')!s}% "
+              f"hit-rate={f'{hit_rate:.1f}%' if hit_rate is not None else 'n/a'} "
+              f"preemptions={kv.get('preemptions')} waiting-max={kv.get('max_waiting_requests')}")
+    comparison = item.get("shared_prefix_comparison")
+    if comparison:
+        reduction = comparison["mean_ttft_reduction_pct"]
+        print(f"  Shared prefix initial/repeated TTFT mean="
+              f"{comparison['initial_ttft']['mean']:.3f}/{comparison['repeated_ttft']['mean']:.3f}s "
+              f"reduction={f'{reduction:.1f}%' if reduction is not None else 'n/a'}")
     if item["gpu"]["available"]:
         print(f"  GPU avg/max={item['gpu']['avg_utilization_pct']:.1f}/{item['gpu']['max_utilization_pct']:.0f}% "
               f"VRAM max={item['gpu']['max_vram_used_mb']} MiB")
@@ -204,6 +268,11 @@ def parse_args() -> argparse.Namespace:
                         help="Offered requests per second for open-loop mode")
     parser.add_argument("--rate-duration", type=float, default=30.0,
                         help="Seconds to submit traffic at each request-rate level")
+    parser.add_argument("--metrics-url", help="vLLM Prometheus URL (default: API origin + /metrics)")
+    parser.add_argument("--kv-sample-interval", type=float, default=0.5)
+    parser.add_argument("--prompt-profile", choices=("random", "shared-prefix"), default="random")
+    parser.add_argument("--shared-prefix-words", type=int, default=1024,
+                        help="Approximate shared-prefix length for KV/prefix-cache testing")
     parser.add_argument("--requests-per-worker", type=int, default=4)
     parser.add_argument("--max-tokens", type=int, default=128)
     parser.add_argument("--timeout", type=float, default=120)
@@ -217,7 +286,8 @@ def parse_args() -> argparse.Namespace:
     args = parser.parse_args()
     if args.requests_per_worker < 1 or args.max_tokens < 1 or args.warmup_requests < 0:
         parser.error("request counts and --max-tokens must be positive")
-    if args.timeout <= 0 or args.gpu_sample_interval <= 0 or args.rate_duration <= 0:
+    if (args.timeout <= 0 or args.gpu_sample_interval <= 0 or args.kv_sample_interval <= 0
+            or args.rate_duration <= 0 or args.shared_prefix_words <= 0):
         parser.error("timeout and GPU sample interval must be positive")
     if not 0 <= args.max_error_rate <= 1 or args.min_tps_growth < 0:
         parser.error("thresholds must be non-negative; error rate must be <= 1")
@@ -225,11 +295,14 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> None:
     args = parse_args()
+    api = urlsplit(args.api_url)
+    metrics_url = args.metrics_url or urlunsplit((api.scheme, api.netloc, "/metrics", "", ""))
     config = BenchmarkConfig(args.api_url, args.model, args.concurrency,
         args.requests_per_worker, args.max_tokens, args.timeout, args.warmup_requests,
         args.gpu_sample_interval, args.min_tps_growth, args.max_ttft_p95,
         args.max_error_rate, args.seed, args.mode, args.burst_sizes,
-        args.request_rates, args.rate_duration)
+        args.request_rates, args.rate_duration, metrics_url, args.kv_sample_interval,
+        args.prompt_profile, args.shared_prefix_words)
     asyncio.run(run(config, args.output_dir))
 
 if __name__ == "__main__":

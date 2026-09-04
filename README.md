@@ -169,6 +169,18 @@ The request-rate duration is the submission window. Each level completes after a
 streams finish, so growing latency and total duration expose overload. Burst mode disables the
 client's default 100-connection limit so large bursts reach the server together.
 
+KV-cache telemetry is collected from vLLM's Prometheus endpoint for every mode. By default the URL
+is derived as `<API origin>/metrics`; override it with `--metrics-url`. Reports include average/peak
+KV usage, prefix-cache queries/hits and hit rate, preemptions, and peak running/waiting requests.
+Use a long common prefix to exercise automatic prefix caching:
+
+    bash src/scripts/benchmark.sh --mode concurrency --concurrency 1,4,8,16 \
+      --requests-per-worker 8 --prompt-profile shared-prefix --shared-prefix-words 2048
+
+The first request populates the prefix cache and later requests reuse it. Run vLLM with prefix
+caching enabled. A missing or incompatible `/metrics` endpoint is recorded as a warning, never as
+zero KV usage.
+
 The defaults classify saturation when any condition is met:
 
 - throughput growth from the previous level is below 10%

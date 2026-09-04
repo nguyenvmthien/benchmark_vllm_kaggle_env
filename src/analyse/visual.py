@@ -27,13 +27,20 @@ def plot_report(report_path: str | Path, output_path: str | Path | None = None) 
         ax.plot(x_values, [x["itl"][key] * 1000 for x in levels], "o-", label=key)
     ax.set_title("Inter-token/decode latency"); ax.set_ylabel("milliseconds"); ax.legend(); ax.grid(alpha=.3)
     ax = axes[1, 1]
-    if any(x["gpu"]["available"] for x in levels):
+    has_gpu = any(x["gpu"]["available"] for x in levels)
+    has_kv = any(x.get("kv_cache", {}).get("available") for x in levels)
+    if has_gpu:
         ax.plot(x_values, [x["gpu"]["avg_utilization_pct"] for x in levels], "o-", label="GPU avg %")
         ax.plot(x_values, [x["gpu"]["max_vram_utilization_pct"] for x in levels], "s--", label="VRAM max %")
+    if has_kv:
+        ax.plot(x_values, [x.get("kv_cache", {}).get("max_usage_pct") or 0 for x in levels],
+                "d-", label="KV cache max %")
+    if has_gpu or has_kv:
         ax.set_ylim(0, 105); ax.legend()
     else:
-        ax.text(.5, .5, "GPU telemetry unavailable", ha="center", va="center", transform=ax.transAxes)
-    ax.set_title("GPU / VRAM utilization"); ax.set_ylabel("percent"); ax.grid(alpha=.3)
+        ax.text(.5, .5, "GPU and KV telemetry unavailable", ha="center", va="center",
+                transform=ax.transAxes)
+    ax.set_title("GPU / VRAM / KV-cache utilization"); ax.set_ylabel("percent"); ax.grid(alpha=.3)
     for ax in axes.flat:
         ax.set_xlabel(x_label)
     saturation = report["saturation"]
