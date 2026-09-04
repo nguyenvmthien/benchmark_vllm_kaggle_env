@@ -1,0 +1,215 @@
+{
+  "schema_version": 1,
+  "created_at": "2026-09-04T07:09:16.341082+00:00",
+  "config": {
+    "api_url": "http://localhost:8000/v1/chat/completions",
+    "model": "Qwen/Qwen3-VL-8B-Instruct",
+    "concurrency_levels": [
+      1,
+      4,
+      8,
+      16,
+      32,
+      64
+    ],
+    "requests_per_worker": 4,
+    "max_tokens": 128,
+    "timeout": 120,
+    "warmup_requests": 2,
+    "gpu_sample_interval": 0.5,
+    "min_tps_growth": 0.1,
+    "max_ttft_p95": 2.0,
+    "max_error_rate": 0.01,
+    "seed": 42,
+    "mode": "burst",
+    "burst_sizes": [
+      16,
+      32,
+      64,
+      128
+    ],
+    "request_rates": [
+      1.0,
+      2.0,
+      4.0,
+      8.0
+    ],
+    "rate_duration": 30.0
+  },
+  "levels": [
+    {
+      "concurrency": 16,
+      "load_value": 16,
+      "mode": "burst",
+      "requests": 16,
+      "successful_requests": 16,
+      "failed_requests": 0,
+      "error_rate": 0.0,
+      "duration_seconds": 5.864392097000746,
+      "output_tokens": 1972,
+      "throughput_tps": 336.26673786163605,
+      "request_throughput_rps": 2.728330530317534,
+      "ttft": {
+        "mean": 0.23996978531238256,
+        "p50": 0.2500299769999401,
+        "p95": 0.25129362549978396,
+        "p99": 0.2518133467003281
+      },
+      "itl": {
+        "mean": 0.044126836031601314,
+        "p50": 0.044175396535438914,
+        "p95": 0.0443004282381831,
+        "p99": 0.04459677680353607
+      },
+      "latency": {
+        "mean": 5.640153537874767,
+        "p50": 5.860326182500103,
+        "p95": 5.860975189749297,
+        "p99": 5.861377527549484
+      },
+      "gpu": {
+        "available": true,
+        "samples": 22,
+        "avg_utilization_pct": 96.4090909090909,
+        "max_utilization_pct": 100,
+        "max_vram_used_mb": 12451,
+        "max_vram_utilization_pct": 81.06119791666667
+      },
+      "warnings": [
+        "Fewer than 20 successful samples; tail percentiles are unstable."
+      ],
+      "errors": []
+    },
+    {
+      "concurrency": 32,
+      "load_value": 32,
+      "mode": "burst",
+      "requests": 32,
+      "successful_requests": 32,
+      "failed_requests": 0,
+      "error_rate": 0.0,
+      "duration_seconds": 8.027872482998646,
+      "output_tokens": 4007,
+      "throughput_tps": 499.13598011004626,
+      "request_throughput_rps": 3.9861121446272727,
+      "ttft": {
+        "mean": 0.3863333994373761,
+        "p50": 0.3950477790003788,
+        "p95": 0.39678929319989037,
+        "p99": 0.3969755825195716
+      },
+      "itl": {
+        "mean": 0.06000492340782516,
+        "p50": 0.060063849169293505,
+        "p95": 0.060071707149611,
+        "p99": 0.06088671333645362
+      },
+      "latency": {
+        "mean": 7.848610305593752,
+        "p50": 8.023315647499658,
+        "p95": 8.025791977550488,
+        "p99": 8.026004994219965
+      },
+      "gpu": {
+        "available": true,
+        "samples": 30,
+        "avg_utilization_pct": 100.0,
+        "max_utilization_pct": 100,
+        "max_vram_used_mb": 12451,
+        "max_vram_utilization_pct": 81.06119791666667
+      },
+      "warnings": [],
+      "errors": [],
+      "tps_growth": 0.4843453839178889
+    },
+    {
+      "concurrency": 64,
+      "load_value": 64,
+      "mode": "burst",
+      "requests": 64,
+      "successful_requests": 64,
+      "failed_requests": 0,
+      "error_rate": 0.0,
+      "duration_seconds": 9.959652051999,
+      "output_tokens": 8102,
+      "throughput_tps": 813.4822338872619,
+      "request_throughput_rps": 6.425927298047984,
+      "ttft": {
+        "mean": 0.5424142059999326,
+        "p50": 0.46662932649996947,
+        "p95": 0.6745043732008525,
+        "p99": 0.6760605002702686
+      },
+      "itl": {
+        "mean": 0.07376778030844558,
+        "p50": 0.07431158832283172,
+        "p95": 0.07434305445038936,
+        "p99": 0.07474441444228604
+      },
+      "latency": {
+        "mean": 9.810377335499908,
+        "p50": 9.904965821000587,
+        "p95": 9.956614700249883,
+        "p99": 9.957642752929987
+      },
+      "gpu": {
+        "available": true,
+        "samples": 36,
+        "avg_utilization_pct": 100.0,
+        "max_utilization_pct": 100,
+        "max_vram_used_mb": 12451,
+        "max_vram_utilization_pct": 81.06119791666667
+      },
+      "warnings": [],
+      "errors": [],
+      "tps_growth": 0.629780793818772
+    },
+    {
+      "concurrency": 128,
+      "load_value": 128,
+      "mode": "burst",
+      "requests": 128,
+      "successful_requests": 128,
+      "failed_requests": 0,
+      "error_rate": 0.0,
+      "duration_seconds": 14.343724292999468,
+      "output_tokens": 16280,
+      "throughput_tps": 1134.991140895363,
+      "request_throughput_rps": 8.923763269938972,
+      "ttft": {
+        "mean": 0.8463732428827342,
+        "p50": 1.0446548999998413,
+        "p95": 1.056962607299738,
+        "p99": 1.061448457729275
+      },
+      "itl": {
+        "mean": 0.1055363445010036,
+        "p50": 0.10455224454724842,
+        "p95": 0.1075761700921241,
+        "p99": 0.10757971115920976
+      },
+      "latency": {
+        "mean": 14.16614574880468,
+        "p50": 14.318543477500498,
+        "p95": 14.335069618399302,
+        "p99": 14.338572893660075
+      },
+      "gpu": {
+        "available": true,
+        "samples": 52,
+        "avg_utilization_pct": 100.0,
+        "max_utilization_pct": 100,
+        "max_vram_used_mb": 12451,
+        "max_vram_utilization_pct": 81.06119791666667
+      },
+      "warnings": [],
+      "errors": [],
+      "tps_growth": 0.3952254807972341
+    }
+  ],
+  "saturation": {
+    "found": false,
+    "level": 128,
+    "reason": "No saturation detected in tested concurrency range."
+  }
+}

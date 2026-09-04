@@ -1,4 +1,4 @@
-"""Concurrency sweep benchmark for an OpenAI-compatible vLLM server."""
+"""Concurrency, burst, and request-rate benchmarks for an OpenAI-compatible server."""
 from __future__ import annotations
 import argparse
 import asyncio
@@ -29,12 +29,18 @@ class BenchmarkConfig:
     max_ttft_p95: float
     max_error_rate: float
     seed: int
+    mode: str = "concurrency"
+    burst_sizes: list[int] | None = None
+    request_rates: list[float] | None = None
+    rate_duration: float = 30.0
 
-def summarize(results: list[dict], elapsed: float, concurrency: int, gpu: dict) -> dict:
+def summarize(results: list[dict], elapsed: float, load_value: int | float, gpu: dict,
+              *, mode: str = "concurrency") -> dict:
     valid = [item for item in results if item["success"]]
     tokens = sum(item["output_tokens"] for item in valid)
     return {
-        "concurrency": concurrency, "requests": len(results), "successful_requests": len(valid),
+        "concurrency": load_value, "load_value": load_value, "mode": mode,
+        "requests": len(results), "successful_requests": len(valid),
         "failed_requests": len(results) - len(valid),
         "error_rate": (len(results) - len(valid)) / len(results) if results else 1.0,
         "duration_seconds": elapsed, "output_tokens": tokens,
@@ -81,12 +87,53 @@ async def run_level(config: BenchmarkConfig, level: int, rng: random.Random) -> 
         elapsed = time.perf_counter() - started
     stop.set()
     await monitor_task
-    summary = summarize(results, elapsed, level, monitor.summary())
+    summary = summarize(results, elapsed, level, monitor.summary(), mode="concurrency")
+    print_level(summary)
+    return summary
+
+async def run_scheduled_level(config: BenchmarkConfig, value: int | float,
+                              rng: random.Random) -> dict:
+    """Run a simultaneous burst or an open-loop request-rate level."""
+    if config.mode == "burst":
+        request_count = int(value)
+        delays = [0.0] * request_count
+    else:
+        request_count = max(1, int(float(value) * config.rate_duration))
+        delays = [index / float(value) for index in range(request_count)]
+    prompts = [rng.choice(ALL_PROMPTS) for _ in range(request_count)]
+    stop = asyncio.Event()
+    monitor = GPUMonitor(config.gpu_sample_interval)
+    monitor_task = asyncio.create_task(monitor.run(stop))
+
+    # Avoid aiohttp's default 100-connection queue masking a large server-side burst.
+    connector = aiohttp.TCPConnector(limit=0)
+    async with aiohttp.ClientSession(connector=connector) as session:
+        started = time.perf_counter()
+
+        async def scheduled(prompt: str, delay: float) -> dict:
+            remaining = started + delay - time.perf_counter()
+            if remaining > 0:
+                await asyncio.sleep(remaining)
+            return await fetch_request(session, config.api_url, config.model, prompt,
+                                       config.max_tokens, timeout=config.timeout)
+
+        results = await asyncio.gather(*(
+            scheduled(prompt, delay) for prompt, delay in zip(prompts, delays)
+        ))
+        elapsed = time.perf_counter() - started
+    stop.set()
+    await monitor_task
+    summary = summarize(results, elapsed, value, monitor.summary(), mode=config.mode)
+    if config.mode == "request-rate":
+        summary["offered_requests_per_second"] = float(value)
+        summary["submission_duration_seconds"] = config.rate_duration
     print_level(summary)
     return summary
 
 def print_level(item: dict) -> None:
-    print(f"concurrency={item['concurrency']:<4} success={item['successful_requests']}/{item['requests']} "
+    label = {"burst": "burst_size", "request-rate": "offered_rps"}.get(
+        item.get("mode"), "concurrency")
+    print(f"{label}={item['load_value']:<4} success={item['successful_requests']}/{item['requests']} "
           f"TPS={item['throughput_tps']:.2f} RPS={item['request_throughput_rps']:.2f}")
     print(f"  TTFT p50/p95/p99: {item['ttft']['p50']:.3f}/{item['ttft']['p95']:.3f}/{item['ttft']['p99']:.3f}s")
     print(f"  ITL  p50/p95/p99: {item['itl']['p50']:.4f}/{item['itl']['p95']:.4f}/{item['itl']['p99']:.4f}s")
@@ -113,7 +160,11 @@ async def warm_up(config: BenchmarkConfig) -> None:
 async def run(config: BenchmarkConfig, output_dir: Path) -> Path:
     await warm_up(config)
     rng = random.Random(config.seed)
-    levels = [await run_level(config, level, rng) for level in config.concurrency_levels]
+    if config.mode == "concurrency":
+        levels = [await run_level(config, level, rng) for level in config.concurrency_levels]
+    else:
+        values = config.burst_sizes if config.mode == "burst" else config.request_rates
+        levels = [await run_scheduled_level(config, value, rng) for value in (values or [])]
     saturation = find_saturation(levels, min_tps_growth=config.min_tps_growth,
                                  max_ttft_p95=config.max_ttft_p95,
                                  max_error_rate=config.max_error_rate)
@@ -122,7 +173,9 @@ async def run(config: BenchmarkConfig, output_dir: Path) -> Path:
     output_dir.mkdir(parents=True, exist_ok=True)
     path = output_dir / f"benchmark_{datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ')}.json"
     path.write_text(json.dumps(report, indent=2), encoding="utf-8")
-    print(f"\nSaturation: {saturation['reason']} Recommended concurrency: {saturation['level']}")
+    recommendation = {"burst": "burst size", "request-rate": "request rate"}.get(
+        config.mode, "concurrency")
+    print(f"\nSaturation: {saturation['reason']} Recommended {recommendation}: {saturation['level']}")
     print(f"JSON report: {path}")
     plot_report(path)
     return path
@@ -133,11 +186,24 @@ def parse_levels(value: str) -> list[int]:
         raise argparse.ArgumentTypeError("levels must be unique positive integers in ascending order")
     return levels
 
+def parse_rates(value: str) -> list[float]:
+    rates = [float(item) for item in value.split(",")]
+    if not rates or any(rate <= 0 for rate in rates) or rates != sorted(set(rates)):
+        raise argparse.ArgumentTypeError("rates must be unique positive numbers in ascending order")
+    return rates
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--api-url", default="http://localhost:8000/v1/chat/completions")
     parser.add_argument("--model", default="mistralai/Mistral-7B-Instruct-v0.3")
     parser.add_argument("--concurrency", type=parse_levels, default=parse_levels("1,4,8,16,32,64"))
+    parser.add_argument("--mode", choices=("concurrency", "burst", "request-rate"),
+                        default="concurrency")
+    parser.add_argument("--burst-sizes", type=parse_levels, default=parse_levels("16,32,64,128"))
+    parser.add_argument("--request-rates", type=parse_rates, default=parse_rates("1,2,4,8"),
+                        help="Offered requests per second for open-loop mode")
+    parser.add_argument("--rate-duration", type=float, default=30.0,
+                        help="Seconds to submit traffic at each request-rate level")
     parser.add_argument("--requests-per-worker", type=int, default=4)
     parser.add_argument("--max-tokens", type=int, default=128)
     parser.add_argument("--timeout", type=float, default=120)
@@ -151,7 +217,7 @@ def parse_args() -> argparse.Namespace:
     args = parser.parse_args()
     if args.requests_per_worker < 1 or args.max_tokens < 1 or args.warmup_requests < 0:
         parser.error("request counts and --max-tokens must be positive")
-    if args.timeout <= 0 or args.gpu_sample_interval <= 0:
+    if args.timeout <= 0 or args.gpu_sample_interval <= 0 or args.rate_duration <= 0:
         parser.error("timeout and GPU sample interval must be positive")
     if not 0 <= args.max_error_rate <= 1 or args.min_tps_growth < 0:
         parser.error("thresholds must be non-negative; error rate must be <= 1")
@@ -162,7 +228,8 @@ def main() -> None:
     config = BenchmarkConfig(args.api_url, args.model, args.concurrency,
         args.requests_per_worker, args.max_tokens, args.timeout, args.warmup_requests,
         args.gpu_sample_interval, args.min_tps_growth, args.max_ttft_p95,
-        args.max_error_rate, args.seed)
+        args.max_error_rate, args.seed, args.mode, args.burst_sizes,
+        args.request_rates, args.rate_duration)
     asyncio.run(run(config, args.output_dir))
 
 if __name__ == "__main__":

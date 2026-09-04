@@ -154,7 +154,22 @@ Edit src/scripts/serve.sh for the target hardware, then:
 
 Each level runs concurrency times requests-per-worker requests through a semaphore, producing a
 closed-loop load. Increase requests-per-worker (for example, 10-20) for publication-quality
-percentiles. The defaults classify saturation when any condition is met:
+percentiles.
+
+Run simultaneous burst levels (every request in a level is submitted together):
+
+    bash src/scripts/benchmark.sh --mode burst --burst-sizes 16,32,64,128
+
+Run open-loop traffic at fixed offered rates; submission does not wait for earlier responses:
+
+    bash src/scripts/benchmark.sh --mode request-rate \
+      --request-rates 1,2,4,8 --rate-duration 60
+
+The request-rate duration is the submission window. Each level completes after all submitted
+streams finish, so growing latency and total duration expose overload. Burst mode disables the
+client's default 100-connection limit so large bursts reach the server together.
+
+The defaults classify saturation when any condition is met:
 
 - throughput growth from the previous level is below 10%
 - TTFT p95 exceeds 2 seconds
