@@ -1,211 +1,123 @@
-# vLLM performance benchmark
+# InferCap
 
-A reproducible concurrency sweep for an OpenAI-compatible vLLM endpoint. It records:
+InferCap is an open-source toolkit for checking inference feasibility, selecting a serving configuration, verifying a deployment, and measuring its capacity. The current implementation supports **NVIDIA GPUs and vLLM**.
 
-- TTFT, inter-token/decode latency (ITL/TPOT), and end-to-end latency at mean/p50/p95/p99
-- aggregate output TPS, request throughput (RPS), success/error rate
-- NVIDIA GPU utilization and VRAM usage during every load level
-- a configurable saturation point based on TPS growth, TTFT SLO, and error rate
-- machine-readable JSON and a four-panel PNG dashboard with notices
+Current capabilities include preflight checks, Hugging Face model-family discovery, static model-weight memory estimates, recommended `vllm serve` commands, endpoint verification, three benchmark modes, GPU and vLLM telemetry, saturation analysis, and JSON/PNG output artifacts.
 
-## 1. Preflight
+## Installation
 
-The checker does not import CUDA libraries at startup and gives stable PASS, WARN, and FAIL output.
-Exit status is non-zero only for hard failures, so it can be used in CI.
-
-    uv run python src/scripts/check_runable.py --model mistralai/Mistral-7B-Instruct-v0.3
-
-You can also provide only a model family. The checker searches Hugging Face, filters against the
-vLLM registry installed on this machine, estimates quantized/non-quantized weight memory, ranks
-models against currently free VRAM, and reports the likely vLLM runner:
-
-    uv run python src/scripts/check_runable.py Qwen
-    uv run python src/scripts/check_runable.py --family Qwen --recommend-limit 10
-
-Use `--runner generate|pooling|draft` only when you need to override vLLM's automatic
-runner selection. Family discovery requires Hub access; exact cached model checks support `--offline`.
-
-The generated serve command uses a balanced inference profile by default: prefix caching, chunked
-prefill, reproducible vLLM generation defaults, automatic KV-cache dtype, 64 concurrent sequences,
-and an 8192-token scheduler budget. Select another goal with `--profile safe|latency|throughput`,
-or override `--max-num-seqs` and `--max-num-batched-tokens` directly. Disable either optimization
-with `--no-enable-prefix-caching` or `--no-enable-chunked-prefill`.
-
-### Copy-paste examples
-
-Discover the best Qwen checkpoint for the GPUs that are currently free, using the balanced profile:
+Python 3.12 or newer is required. Install the locked environment with [uv](https://docs.astral.sh/uv/):
 
 ```bash
-uv run python src/scripts/check_runable.py Qwen
+uv sync
 ```
 
-Inspect more Hub candidates and print the ten best recommendations:
+The environment includes vLLM and requires a platform on which the configured vLLM/PyTorch stack can run.
+
+## Quick start
+
+Check an exact model against the local environment and detected GPUs:
 
 ```bash
-uv run python src/scripts/check_runable.py \
-  --family Qwen \
-  --family-candidates 80 \
-  --recommend-limit 10
+uv run benchmark-vllm-check --model mistralai/Mistral-7B-Instruct-v0.3
 ```
 
-Check an exact instruction model with conservative scheduler limits:
+If the checks pass, the output includes a recommended `vllm serve` command. Start it, then benchmark the OpenAI-compatible endpoint:
 
 ```bash
-uv run python src/scripts/check_runable.py \
-  --model Qwen/Qwen2.5-7B-Instruct \
-  --profile safe \
-  --max-model-len 4096
+uv run benchmark-vllm \
+  --model mistralai/Mistral-7B-Instruct-v0.3 \
+  --concurrency 1,4,8,16,32,64
 ```
 
-Check an AWQ checkpoint for two GPUs. Quantization is normally detected from the checkpoint, but it
-can be made explicit for private or incomplete model metadata:
+The existing `benchmark-vllm-check` and `benchmark-vllm` command names are retained for compatibility.
+
+## Preflight and exact model checks
+
+Preflight checks Python, PyTorch, vLLM, system memory, NVIDIA GPUs, model architecture, and estimated model-weight memory. It reports `PASS`, `WARN`, and `FAIL` results and exits non-zero for hard failures. Model size comes from Hugging Face safetensors metadata when available. Cached or local models can use offline mode and an explicit parameter count:
 
 ```bash
-uv run python src/scripts/check_runable.py \
-  --model Qwen/Qwen2.5-7B-Instruct-AWQ \
-  --quantization awq \
-  --tensor-parallel-size 2 \
-  --dtype float16 \
-  --profile balanced
+uv run benchmark-vllm-check \
+  --model ./models/example-model \
+  --offline --model-size-b 7 --quantization awq
 ```
 
-Tune for low latency or maximum throughput:
+The memory calculation estimates weights plus 15% loading overhead using current free GPU memory and the selected tensor-parallel size. It excludes KV cache and other runtime allocations.
+
+**Feasibility is a static estimate, not a runtime guarantee.** Passing preflight does not prove that a model will load successfully or meet a performance target. Use `--json` for machine-readable output.
+
+## Family discovery
+
+A family name triggers a Hugging Face Hub search. InferCap filters candidates using the installed vLLM architecture registry, estimates weight memory, ranks candidates, and selects a likely fit:
 
 ```bash
-# Lower scheduler queue/batch limits for more predictable latency.
-uv run python src/scripts/check_runable.py Qwen --profile latency
-
-# Larger scheduling limits for an offline or high-throughput service.
-uv run python src/scripts/check_runable.py Qwen --profile throughput
+uv run benchmark-vllm-check Qwen --recommend-limit 5
 ```
 
-Override scheduler limits directly when the built-in profile is not enough:
+Family discovery requires Hub access. Exact cached model checks can use `--offline`.
+
+## Serving recommendation
+
+Successful preflight output includes a generated `vllm serve` command. The default `balanced` profile enables prefix caching and chunked prefill and supplies scheduler, model-length, dtype, KV-cache dtype, and generation-config flags. Other profiles are `safe`, `latency`, and `throughput`; individual settings can be overridden through the preflight CLI.
+
+Recommendations are configuration starting points. They do not start the server or validate runtime stability.
+
+## Endpoint verification
+
+Add `--check-server` to query `/v1/models` and confirm that the requested model ID is present:
 
 ```bash
-uv run python src/scripts/check_runable.py Qwen \
-  --profile balanced \
-  --max-num-seqs 96 \
-  --max-num-batched-tokens 12288 \
-  --max-model-len 8192 \
-  --served-model-name qwen
+uv run benchmark-vllm-check \
+  --model mistralai/Mistral-7B-Instruct-v0.3 \
+  --check-server --api-url http://localhost:8000/v1/chat/completions
 ```
 
-Check an embedding/reranker model by selecting the pooling runner:
+## Benchmark modes
+
+The benchmark sends streamed chat-completion requests to an OpenAI-compatible endpoint:
+
+- `concurrency` runs a closed-loop sweep; each level sends `concurrency × requests-per-worker` requests.
+- `burst` submits all requests in a level together.
+- `request-rate` submits open-loop traffic at fixed offered rates for a configured duration.
+
+Select a mode with `--mode`; relevant controls include `--concurrency`, `--burst-sizes`, `--request-rates`, `--rate-duration`, `--requests-per-worker`, and `--max-tokens`. Use `--prompt-profile shared-prefix` to exercise prefix-cache reuse.
+
+## Telemetry
+
+Each load level records request success and errors, output TPS, RPS, end-to-end latency, time to first token (TTFT), and inter-token/decode latency with mean, p50, p95, and p99 summaries.
+
+InferCap samples NVIDIA utilization and VRAM through `nvidia-smi`. It samples compatible vLLM Prometheus metrics from the API origin's `/metrics` endpoint by default, including KV-cache use, prefix-cache activity, preemptions, and running or waiting requests. Unavailable telemetry is reported as unavailable or as a warning, not as measured zero usage.
+
+## Saturation analysis
+
+Saturation is reported at the last healthy tested level before a configured threshold is crossed. Defaults are throughput growth below 10%, TTFT p95 above 2 seconds, or request error rate above 1%. Adjust them with `--min-tps-growth`, `--max-ttft-p95`, and `--max-error-rate`.
+
+## Output artifacts
+
+By default, each benchmark writes:
+
+- `benchmark_output/benchmark_<UTC timestamp>.json`, containing configuration, per-level results, telemetry summaries, and saturation analysis;
+- `benchmark_output/benchmark_<UTC timestamp>.png`, a four-panel dashboard rendered from the report.
+
+Change the destination with `--output-dir`. Preflight JSON is printed to standard output with `--json` and can be redirected by the caller.
+
+## Limitations
+
+- Hardware detection and telemetry are NVIDIA-specific and depend on `nvidia-smi`.
+- Compatibility checks and serving recommendations are vLLM-specific.
+- Model discovery and automatic parameter counts depend on Hugging Face metadata and network access unless cached or overridden.
+- Weight-memory estimates exclude KV cache and other runtime allocations.
+- Endpoint verification checks reachability and the served model ID; it is not a full inference validation.
+- Benchmarks target the streamed OpenAI-compatible chat-completions API and run from one client process.
+
+InferCap does not currently support other hardware backends or inference runtimes.
+
+## Development
 
 ```bash
-uv run python src/scripts/check_runable.py \
-  --model Qwen/Qwen3-Embedding-0.6B \
-  --runner pooling \
-  --profile throughput
+uv sync
+uv run python -m unittest discover -s tests -v
+uv run python -m compileall -q src main.py tests
 ```
 
-Disable optimizations when diagnosing model compatibility or scheduler issues:
-
-```bash
-uv run python src/scripts/check_runable.py Qwen \
-  --no-enable-prefix-caching \
-  --no-enable-chunked-prefill
-```
-
-Check a model already available locally without accessing Hugging Face:
-
-```bash
-uv run python src/scripts/check_runable.py \
-  --model ./models/Qwen2.5-7B-Instruct-AWQ \
-  --offline \
-  --model-size-b 7.6 \
-  --quantization awq
-```
-
-Produce machine-readable output for CI or another script:
-
-```bash
-uv run python src/scripts/check_runable.py Qwen --json > preflight.json
-jq '.ready, .selected_model, .inference_recommendation, .recommended_serve_command' preflight.json
-```
-
-Verify a running OpenAI-compatible endpoint:
-
-```bash
-uv run python src/scripts/check_runable.py \
-  --model Qwen/Qwen2.5-7B-Instruct \
-  --check-server \
-  --api-url http://localhost:8000/v1/chat/completions \
-  --json
-```
-
-Model size is automatically read from Hugging Face safetensors metadata. Use --model-size-b only as an override for private or non-safetensors repositories. The memory estimate covers static model weights plus 15% loading overhead. KV cache depends on
-context length, batch shape, architecture, and cache dtype, so it is explicitly not presented as
-an exact estimate.
-
-## 2. Serve
-
-Edit src/scripts/serve.sh for the target hardware, then:
-
-    bash src/scripts/serve.sh
-
-## 3. Benchmark
-
-    bash src/scripts/benchmark.sh \
-      --model mistralai/Mistral-7B-Instruct-v0.3 \
-      --concurrency 1,4,8,16,32,64 \
-      --requests-per-worker 4 \
-      --max-tokens 128
-
-Each level runs concurrency times requests-per-worker requests through a semaphore, producing a
-closed-loop load. Increase requests-per-worker (for example, 10-20) for publication-quality
-percentiles.
-
-Run simultaneous burst levels (every request in a level is submitted together):
-
-    bash src/scripts/benchmark.sh --mode burst --burst-sizes 16,32,64,128
-
-Run open-loop traffic at fixed offered rates; submission does not wait for earlier responses:
-
-    bash src/scripts/benchmark.sh --mode request-rate \
-      --request-rates 1,2,4,8 --rate-duration 60
-
-The request-rate duration is the submission window. Each level completes after all submitted
-streams finish, so growing latency and total duration expose overload. Burst mode disables the
-client's default 100-connection limit so large bursts reach the server together.
-
-KV-cache telemetry is collected from vLLM's Prometheus endpoint for every mode. By default the URL
-is derived as `<API origin>/metrics`; override it with `--metrics-url`. Reports include average/peak
-KV usage, prefix-cache queries/hits and hit rate, preemptions, and peak running/waiting requests.
-Use a long common prefix to exercise automatic prefix caching:
-
-    bash src/scripts/benchmark.sh --mode concurrency --concurrency 1,4,8,16 \
-      --requests-per-worker 8 --prompt-profile shared-prefix --shared-prefix-words 2048
-
-The first request populates the prefix cache and later requests reuse it. Run vLLM with prefix
-caching enabled. A missing or incompatible `/metrics` endpoint is recorded as a warning, never as
-zero KV usage.
-
-The defaults classify saturation when any condition is met:
-
-- throughput growth from the previous level is below 10%
-- TTFT p95 exceeds 2 seconds
-- request error rate exceeds 1%
-
-Tune these using --min-tps-growth, --max-ttft-p95, and --max-error-rate.
-The recommended operating concurrency is the last healthy level before the trigger. If no trigger
-is found, expand --concurrency.
-
-The benchmark command is a single pipeline: after all load levels finish, it writes
-benchmark_output/benchmark_<UTC timestamp>.json and immediately renders the matching .png
-dashboard. A plotting failure fails the command instead of silently leaving a partial result.
-
-## Metric notes
-
-- Output TPS = successful completion tokens / wall-clock duration of the level.
-- TTFT = request start to first non-empty streamed content.
-- ITL / decode latency = time from first token to stream completion / (output_tokens - 1).
-- Token counts use the OpenAI stream final usage.completion_tokens. Older servers fall back to
-  SSE content-event counts and emit a warning because one event is not guaranteed to equal one token.
-- GPU values are sampled using nvidia-smi; missing telemetry is visible as a warning, never silently
-  treated as zero utilization.
-
-## Development checks
-
-    python -m unittest discover -s tests -v
-    python -m compileall -q src main.py
+See [CONTRIBUTING.md](CONTRIBUTING.md) for contribution guidance and [docs/architecture.md](docs/architecture.md) for the current and target architecture.

@@ -1,7 +1,7 @@
 [project]
 name = "infercap"
 version = "0.2.0"
-description = "Concurrency and saturation benchmark for OpenAI-compatible vLLM servers"
+description = "Hardware-aware inference capacity, compatibility, serving, and benchmarking toolkit"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
