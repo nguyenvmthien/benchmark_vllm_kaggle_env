@@ -1,40 +1,49 @@
-# This workflow will install Python dependencies, run tests and lint with a variety of Python versions
-# For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-python
-
 name: Python package
 
 on:
   push:
-    branches: [ "master" ]
+    branches: ["master"]
   pull_request:
-    branches: [ "master" ]
+    branches: ["master"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
 
 jobs:
   build:
-
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.9", "3.10", "3.11"]
+        python-version: ["3.12", "3.13", "3.14"]
+
+    env:
+      MPLBACKEND: Agg
 
     steps:
-    - uses: actions/checkout@v4
-    - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v3
-      with:
-        python-version: ${{ matrix.python-version }}
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        python -m pip install flake8 pytest aiohttp asyncio
-        if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
-    - name: Lint with flake8
-      run: |
-        # stop the build if there are Python syntax errors or undefined names
-        flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
-        # exit-zero treats all errors as warnings. The GitHub editor is 127 chars wide
-        flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
-    - name: Test with pytest
-      run: |
-        pytest
+      - uses: actions/checkout@v4
+      - name: Set up uv and Python ${{ matrix.python-version }}
+        uses: astral-sh/setup-uv@v9
+        with:
+          version: "0.11.13"
+          python-version: ${{ matrix.python-version }}
+          enable-cache: true
+      - name: Install locked test dependencies
+        # Unit tests mock runtime/GPU checks; omit vLLM, Triton and their
+        # transitive dependencies to keep this job suitable for CPU runners.
+        run: |
+          uv export --locked --no-dev --no-emit-project --prune vllm --prune triton --output-file "$RUNNER_TEMP/requirements-test.txt"
+          uv venv
+          uv pip sync "$RUNNER_TEMP/requirements-test.txt"
+          uv pip install --no-deps -e .
+      - name: Lint with flake8
+        run: |
+          uvx flake8 src main.py tests --count --select=E9,F63,F7,F82 --show-source --statistics
+          uvx flake8 src main.py tests --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+      - name: Check Python syntax
+        run: uv run --no-sync python -m compileall -q src main.py tests
+      - name: Run unit tests
+        # Do not sync here: a full sync would reinstall the GPU runtime stack.
+        run: uv run --no-sync python -m unittest discover -s tests -v
