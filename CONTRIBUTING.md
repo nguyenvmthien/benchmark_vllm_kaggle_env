@@ -12,6 +12,8 @@ cd infercap
 uv sync
 ```
 
+The Python package lives in `src/infercap/`. Install it with `uv sync` before running tests; tests import the installed `infercap` package.
+
 Run the project checks before submitting a pull request:
 
 ```bash

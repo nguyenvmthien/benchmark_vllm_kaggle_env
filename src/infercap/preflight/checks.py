@@ -1,8 +1,4 @@
-"""Preflight checks for serving a model with vLLM.
-
-This script never imports vLLM or torch just to print their versions, so it is
-safe on partially configured hosts. Exit code: 0=ready/warnings, 1=hard failure.
-"""
+"""Preflight checks, model discovery, and vLLM serving recommendations."""
 from __future__ import annotations
 import argparse
 import importlib.metadata

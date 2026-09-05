@@ -1,27 +1,56 @@
 # InferCap architecture
 
-This document distinguishes the code that exists today from the intended v0.1 architecture. Names in the target section are proposals, not implemented modules or public APIs.
+This document distinguishes the current package structure from the longer-term architecture direction. Names in the target section are proposals, not implemented modules or public APIs.
 
 ## Current architecture
 
-InferCap exposes one console script, `infercap`, through `src.cli:main`, with two subcommands:
+InferCap installs the `infercap` package from `src/infercap/`. The console
+command and `python -m infercap` both dispatch through `infercap.cli:main`:
 
-- `infercap check` calls `src.scripts.check_runable:main` for preflight, discovery, recommendation, and endpoint checks.
-- `infercap benchmark` calls `src.benchmark.main:main` for load generation, measurement, analysis, and reports.
-- `main.py` also invokes the shared CLI. Running `infercap` without a subcommand displays help.
+- `infercap check` uses `infercap.preflight.cli` for arguments and presentation.
+- `infercap benchmark` uses `infercap.benchmark.cli` for arguments and execution setup.
+- Running `infercap` without a subcommand displays help.
 
-The current implementation is organized as follows:
+```text
+src/infercap/
+├── __init__.py
+├── __main__.py
+├── cli.py
+├── preflight/
+│   ├── cli.py          # Arguments, JSON/text output, exit status
+│   └── checks.py       # Environment/model checks and serving recommendations
+├── benchmark/
+│   ├── cli.py          # Arguments and benchmark configuration
+│   ├── runner.py       # Load execution and report orchestration
+│   ├── client.py       # OpenAI-compatible streaming requests
+│   ├── nvidia.py       # NVIDIA telemetry through nvidia-smi
+│   └── vllm_metrics.py # vLLM Prometheus metrics
+├── analysis/
+│   ├── metrics.py      # Distributions and saturation estimates
+│   └── plotting.py     # PNG dashboards from JSON reports
+└── config/
+    ├── prompts.py      # Benchmark prompt inputs
+    └── settings.py     # Legacy configuration constants
+```
 
-- `src/scripts/check_runable.py` owns preflight CLI parsing, environment and model checks, Hub discovery, static weight-memory estimation, vLLM configuration recommendations, endpoint verification, and presentation.
-- `src/benchmark/main.py` owns benchmark CLI parsing and orchestration for concurrency, burst, and request-rate modes.
-- `src/benchmark/client.py` sends and measures streamed OpenAI-compatible requests.
-- `src/benchmark/gpu.py` samples NVIDIA GPU utilization and memory.
-- `src/benchmark/kv_cache.py` samples and normalizes supported vLLM Prometheus metrics.
-- `src/analyse/metrics.py` computes distributions and selects a saturation level.
-- `src/analyse/visual.py` renders a PNG dashboard from a JSON report.
-- `src/config/prompts.py` and `src/config/settings.py` provide benchmark inputs and configuration values.
+Each subpackage has an explicit `__init__.py`. Operational helpers live under
+`scripts/`, outside the installed Python package: `benchmark.sh`, `serve_vllm.sh`,
+and `check_vllm_environment.py`. The serving helper is a hardware-specific example;
+it is not a general deployment command.
 
-The preflight module combines core checks with CLI output, while benchmark orchestration coordinates load generation, telemetry, analysis, persistence, and plotting.
+`preflight.checks.run_checks` and `benchmark.runner.run` are callable without CLI
+parsing. Preflight still accepts and updates an `argparse.Namespace`; replacing
+that with a dedicated configuration model is a separate change. Benchmark
+execution still coordinates report writing and plotting in its runner.
+
+## Package migration
+
+Run `uv sync` after updating. Public `infercap check` and `infercap benchmark`
+commands retain their options and exit codes. Internal imports now use
+`infercap.*`; the former `src.*` imports are not compatibility aliases. Use
+`python -m infercap` in place of the removed root `main.py` and forwarding modules.
+The source-layout package must be installed before running tests. CI builds and
+installs a wheel and verifies the CLI outside the checkout.
 
 ## Current execution flows
 
@@ -67,18 +96,18 @@ GPU capacity calculations assume similar devices participating through vLLM tens
 ## Known architectural limitations
 
 - Hardware discovery, feasibility, and telemetry do not share a hardware-provider interface.
-- Preflight domain logic, external-system access, CLI parsing, and presentation are concentrated in one module.
+- Preflight checks, external-system access, discovery, and serving recommendations still share one core module; CLI parsing and presentation are separate.
 - Runtime compatibility and serve-command generation are not behind a runtime adapter.
 - The weight estimate does not model KV cache or all runtime allocations.
 - Family discovery depends directly on Hugging Face Hub metadata and the installed vLLM registry.
 - Endpoint verification confirms only reachability and model listing.
 - Benchmark execution, telemetry coordination, report writing, and visualization are tightly orchestrated by one module.
-- The versioned JSON report has no separately defined schema or compatibility policy.
+- The versioned JSON report is covered by fixture contract tests, but has no standalone machine-readable schema.
 - Load generation runs from one client process, which can itself become a bottleneck.
 
-## v0.1 target architecture
+## Further architecture work
 
-The v0.1 direction is to establish clearer boundaries while preserving current behavior and commands. Proposed responsibilities are:
+Further work should establish clearer boundaries while preserving current behavior and commands. Proposed responsibilities are:
 
 - a small CLI/presentation layer for argument parsing, exit codes, and human or JSON output;
 - core data models for detected hardware, feasibility results, serving recommendations, benchmark configurations, and reports;

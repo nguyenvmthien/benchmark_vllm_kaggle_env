@@ -36,5 +36,22 @@ execution of the removed `main.py`/benchmark forwarding modules are replaced by
 
 ## Issue tracking
 
-This document is an issue-ready local scope record. A GitHub issue has not been
-linked: the available GitHub CLI is not authenticated.
+Tracked under [Packaging #8](https://github.com/nguyenvmthien/infercap/issues/8)
+and the package/CLI portion of [Architecture #1](https://github.com/nguyenvmthien/infercap/issues/1).
+This refactor does not complete the remaining hardware/runtime extraction work in #1.
+
+## Validation results
+
+- Package layout, CLI/core separation, script relocation, and documentation completed.
+- Source distribution and wheel built successfully with `uv build`.
+- All 45 tests passed against the installed wheel on Python 3.12, 3.13, and 3.14.
+- Console and module entry points passed outside the repository checkout.
+- Wheel contains only the `infercap` package and distribution metadata.
+- Core preflight and benchmark function/class ASTs match the pre-refactor revision.
+- Blocking flake8 checks, compileall, shell syntax, actionlint, lock consistency,
+  and `git diff --check` passed.
+
+GPU runtime execution was not part of this refactor validation. Preflight core
+still uses a namespace configuration and contains hardware/runtime integration;
+benchmark reporting is still orchestrated by the runner. These remain scoped
+follow-up items under the architecture issue.

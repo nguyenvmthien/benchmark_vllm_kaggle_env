@@ -1,5 +1,12 @@
 'use strict';
 const workflows = {
+  recommend: {
+    comment: '# Know the family, but not which model to run?',
+    command: 'uv run infercap check Qwen --recommend-limit 5',
+    lines: [],
+    note: '',
+    caption: 'Example only · real discovery requires Hugging Face Hub access'
+  },
   check: {
     comment: '# Start with the hardware you have.',
     command: 'uv run infercap check \\\n  --model mistralai/Mistral-7B-Instruct-v0.3',
@@ -22,10 +29,11 @@ const workflows = {
     caption: 'Workflow guide · requires a running compatible endpoint'
   }
 };
-let activeStep = 'check';
+let activeStep = 'recommend';
 const tabs = [...document.querySelectorAll('[data-step]')];
 function selectStep(key) {
   activeStep = key;
+  document.getElementById('recommend-demo').hidden = key !== 'recommend';
   const workflow = workflows[key];
   tabs.forEach(tab => {
     const selected = tab.dataset.step === key;
@@ -49,7 +57,7 @@ function selectStep(key) {
   const note = document.createElement('p');
   note.className = 'output-note';
   note.textContent = workflow.note;
-  output.append(note);
+  if (workflow.note) output.append(note);
 }
 tabs.forEach((tab, index) => {
   tab.addEventListener('click', () => selectStep(tab.dataset.step));
@@ -81,3 +89,11 @@ async function copyCommand(text) {
 document.querySelectorAll('[data-copy]').forEach(button => button.addEventListener('click', () => copyCommand(button.dataset.copy)));
 document.getElementById('copy-workflow').addEventListener('click', () => copyCommand(workflows[activeStep].command));
 selectStep(activeStep);
+
+// Feature cards open the matching example, including for keyboard users.
+document.querySelectorAll('[data-workflow]').forEach(link => {
+  link.addEventListener('click', () => {
+    selectStep(link.dataset.workflow);
+    document.getElementById(`tab-${link.dataset.workflow}`).focus({ preventScroll: true });
+  });
+});

@@ -37,19 +37,23 @@ jobs:
           uv export --locked --no-dev --no-emit-project --prune vllm --prune triton --output-file "$RUNNER_TEMP/requirements-test.txt"
           uv venv
           uv pip sync "$RUNNER_TEMP/requirements-test.txt"
-          uv pip install --no-deps -e .
+      - name: Build and install package
+        run: |
+          uv build --out-dir "$RUNNER_TEMP/dist"
+          uv pip install --no-deps "$RUNNER_TEMP/dist/"*.whl
       - name: Lint with flake8
         run: |
           uvx flake8 src scripts tests --count --select=E9,F63,F7,F82 --show-source --statistics
           uvx flake8 src scripts tests --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
       - name: Check Python syntax
         run: uv run --no-sync python -m compileall -q src scripts tests
-      - name: Verify CLI entry points
+      - name: Verify installed CLI outside the checkout
+        working-directory: ${{ runner.temp }}
         run: |
-          uv run --no-sync python -m infercap --help
-          uv run --no-sync infercap --help
-          uv run --no-sync infercap check --help
-          uv run --no-sync infercap benchmark --help
+          "$GITHUB_WORKSPACE/.venv/bin/python" -m infercap --help
+          "$GITHUB_WORKSPACE/.venv/bin/infercap" --help
+          "$GITHUB_WORKSPACE/.venv/bin/infercap" check --help
+          "$GITHUB_WORKSPACE/.venv/bin/infercap" benchmark --help
       - name: Run unit tests
         # Do not sync here: a full sync would reinstall the GPU runtime stack.
         run: uv run --no-sync python -m unittest discover -s tests -v

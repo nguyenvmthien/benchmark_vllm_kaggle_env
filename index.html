@@ -14,7 +14,7 @@
   <header class="site-header"><a class="brand" href="#" aria-label="InferCap home"><span class="brand-symbol" aria-hidden="true">▰</span>infercap<span class="brand-period">.</span></a><nav aria-label="Main navigation"><a href="#capabilities">Capabilities</a><a href="#workflow">How it works</a><a href="#quickstart">Quick start <span>→</span></a></nav><a class="github-link" href="https://github.com/nguyenvmthien/infercap"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 .8a11.3 11.3 0 0 0-3.6 22c.6.1.8-.2.8-.5v-2.1c-3.3.7-4-1.4-4-1.4-.5-1.3-1.3-1.6-1.3-1.6-1.1-.7.1-.7.1-.7 1.2.1 1.8 1.2 1.8 1.2 1 1.7 2.7 1.2 3.4.9.1-.8.4-1.2.7-1.5-2.6-.3-5.4-1.3-5.4-5.6 0-1.2.4-2.2 1.2-3-.1-.3-.5-1.5.1-3.1 0 0 1-.3 3.1 1.2a10.7 10.7 0 0 1 5.7 0c2.2-1.5 3.1-1.2 3.1-1.2.7 1.6.3 2.8.2 3.1.7.8 1.1 1.8 1.1 3 0 4.3-2.8 5.3-5.4 5.6.4.4.8 1.1.8 2.2v3c0 .3.2.6.8.5A11.3 11.3 0 0 0 12 .8Z"/></svg>GitHub <span>↗</span></a></header>
   <main id="main-content">
     <section class="hero wrap">
-      <div class="hero-copy"><a class="release" href="https://github.com/nguyenvmthien/infercap/blob/master/pyproject.toml"><span class="status-dot"></span> OPEN SOURCE / v0.2.0 <span>↗</span></a><h1>Big models.<br>Real hardware.<br><span>Know your limits.</span></h1><p class="hero-description">Find what fits. Configure with confidence. Measure what matters. Check model feasibility, generate vLLM serving commands, and benchmark capacity on NVIDIA GPUs.</p><div class="hero-actions"><a class="button primary" href="#quickstart">Get started <span>↗</span></a><a class="button secondary" href="#capabilities">Explore capabilities <span>→</span></a></div><div class="install-command"><span>$</span><code>uv sync</code><button class="copy-button" data-copy="uv sync" aria-label="Copy installation command">Copy</button></div><p class="command-context">Inside the cloned repo. <a href="#quickstart">See setup instructions →</a></p><p class="hero-note">Python 3.12+ <span>·</span> NVIDIA GPUs <span>·</span> Built for vLLM</p></div>
+      <div class="hero-copy"><a class="release" href="https://github.com/nguyenvmthien/infercap/blob/master/pyproject.toml"><span class="status-dot"></span> OPEN SOURCE / v0.2.0 <span>↗</span></a><h1>Big models.<br>Real hardware.<br><span>Know your limits.</span></h1><p class="hero-description">Find the right model for your GPU. Configure vLLM. Measure real capacity.</p><div class="hero-actions"><a class="button primary" href="#quickstart">Get started <span>↗</span></a><a class="button secondary" href="#capabilities">Explore capabilities <span>→</span></a></div><div class="install-command"><span>$</span><code>uv sync</code><button class="copy-button" data-copy="uv sync" aria-label="Copy installation command">Copy</button></div><p class="command-context">Inside the cloned repo. <a href="#quickstart">See setup instructions →</a></p><p class="hero-note">Python 3.12+ <span>·</span> NVIDIA GPUs <span>·</span> Built for vLLM</p></div>
       <div class="hardware-scene" role="img" aria-label="Illustration of a GPU connected to model feasibility, runtime configuration, and capacity measurement">
         <div class="scene-grid"></div><div class="orbital orbit-one"></div><div class="orbital orbit-two"></div><div class="scene-coordinate top-coordinate">SYS.01 / INFERENCE ENGINE</div><div class="scene-coordinate bottom-coordinate">HARDWARE → INTELLIGENCE</div>
         <div class="signal-line signal-one"></div><div class="signal-line signal-two"></div>
@@ -26,14 +26,69 @@
     </section>
     <section class="ecosystem wrap" aria-label="Supported ecosystem"><p>BUILT ON THE STACK<br><span>YOU ALREADY USE.</span></p><div class="ecosystem-name nvidia">▧ <strong>NVIDIA</strong></div><div class="ecosystem-name vllm">v<span>LLM</span></div><div class="ecosystem-name hugging">🤗 <strong>Hugging Face</strong></div><div class="ecosystem-name python"><span>⌘</span> Python</div><div class="ecosystem-name uv"><span>▥</span> uv</div></section>
     <section class="capabilities wrap section" id="capabilities"><div class="section-heading"><div><p class="eyebrow">01 / FROM POSSIBILITY TO PERFORMANCE</p><h2>Less trial and error.<br>More tokens per second.</h2></div><p>One toolkit to connect your hardware,<br>your model, and your next deployment.</p></div><div class="feature-grid">
-      <article class="feature-card"><div class="card-top"><span class="feature-icon">⌕</span><span>01</span></div><h3>Find what fits.</h3><p>Inspect your environment, discover model families, and estimate weight memory before you load a model.</p><div class="mini-terminal"><div><span>architecture</span><b>COMPATIBLE</b></div><div><span>weight memory</span><b>ESTIMATED</b></div><div><span>next step</span><span class="lime">runtime verification →</span></div></div><span class="card-tag">PREFLIGHT & DISCOVERY</span></article>
-      <article class="feature-card"><div class="card-top"><span class="feature-icon">⌘</span><span>02</span></div><h3>Start with a better config.</h3><p>Generate a vLLM serving command with a profile for your workload. Check that your endpoint serves the right model.</p><div class="profile-picker" aria-label="Serving profile illustration"><span>safe</span><span class="selected">balanced</span><span>latency</span><span>throughput</span></div><div class="config-code"><span>vllm</span> serve your/model<br><span class="muted">--enable-prefix-caching</span></div><span class="card-tag">CONFIGURE & VERIFY</span></article>
-      <article class="feature-card"><div class="card-top"><span class="feature-icon">↗</span><span>03</span></div><h3>Measure the ceiling.</h3><p>Sweep load levels. Track throughput, latency, and GPU pressure. Identify your last healthy tested operating point.</p><div class="mini-chart" aria-hidden="true"><div></div><svg viewBox="0 0 300 65" preserveAspectRatio="none"><path class="chart-dashed" d="M0 60 300 5"/><path d="M0 60 45 53 88 38 135 23 180 12 225 8 265 8 300 10"/><circle cx="225" cy="8" r="4"/></svg><span>SATURATION POINT ↗</span></div><span class="card-tag">BENCHMARK & ANALYZE</span></article>
-    </div><p class="estimate-note">↳ Feasibility is an estimate, not a runtime guarantee. Weight estimates exclude KV cache and other runtime allocations.</p></section>
-    <section class="workflow wrap section" id="workflow"><div class="workflow-copy"><p class="eyebrow">02 / YOUR TERMINAL. YOUR WORKFLOW.</p><h2>From “will it run?”<br>to “how far can it go?”</h2><p>Keep the guesswork out of your inference stack.<br>Go from hardware checks to measured capacity.</p><div class="steps" role="tablist" aria-orientation="vertical" aria-label="Workflow commands"><button id="tab-check" class="step active" role="tab" aria-selected="true" aria-controls="command-panel" data-step="check"><span>01</span><div><strong>Check your model</strong><small>Inspect hardware and estimate feasibility.</small></div><b>↗</b></button><button id="tab-serve" class="step" role="tab" aria-selected="false" aria-controls="command-panel" tabindex="-1" data-step="serve"><span>02</span><div><strong>Configure & serve</strong><small>Use the recommended vLLM command.</small></div><b>↗</b></button><button id="tab-benchmark" class="step" role="tab" aria-selected="false" aria-controls="command-panel" tabindex="-1" data-step="benchmark"><span>03</span><div><strong>Find your operating point</strong><small>Run a sweep and explore the results.</small></div><b>↗</b></button></div></div><div class="terminal" id="command-panel" role="tabpanel" aria-labelledby="tab-check" tabindex="0"><div class="terminal-bar"><span class="window-dots"><i></i><i></i><i></i></span><span>infercap — terminal</span><button class="copy-button" id="copy-workflow" aria-label="Copy workflow command">Copy command</button></div><div class="terminal-content"><p class="terminal-comment" id="terminal-comment"># Start with the hardware you have.</p><pre id="terminal-command"></pre><div class="terminal-output" id="terminal-output"></div><div class="terminal-prompt"><span>❯</span><i></i></div></div><div class="terminal-footer"><span class="status-dot"></span><span id="terminal-caption">Illustrative output · results depend on your environment</span><span>bash</span></div></div></section>
+      <article class="feature-card">
+        <div class="card-top"><span class="feature-icon" aria-hidden="true">⌕</span><span>01 / RECOMMEND</span></div>
+        <h3>Find models that fit your GPU.</h3>
+        <p>Search a model family. Get recommendations matched to your environment.</p>
+        <div class="feature-example">
+          <p class="example-label">EXAMPLE · QWEN / 24 GiB FREE / FP16</p>
+          <div class="candidate-preview"><span>Qwen2.5-7B-Instruct<small>~15.0 GiB estimated weights</small></span><b>FIT</b></div>
+          <div class="candidate-preview"><span>Qwen2.5-14B-Instruct<small>~30.0 GiB estimated weights</small></span><b class="over-budget">NO FIT</b></div>
+          <p class="example-caption">Weight estimates only · illustrative.</p>
+        </div>
+        <a class="feature-action" href="#workflow" data-workflow="recommend">See model discovery in action <span>→</span></a>
+      </article>
+      <article class="feature-card">
+        <div class="card-top"><span class="feature-icon" aria-hidden="true">⌘</span><span>02 / CONFIGURE</span></div>
+        <h3>Generate your serving command.</h3>
+        <p>Pick a profile. Get a vLLM command ready to review and run.</p>
+        <div class="feature-example">
+          <p class="example-label">EXAMPLE · BALANCED PROFILE</p>
+          <pre class="serving-preview"><span>vllm serve</span> Qwen/Qwen2.5-7B-Instruct \
+  --tensor-parallel-size 1 \
+  --dtype float16 \
+  --gpu-memory-utilization 0.9 \
+  --max-model-len 4096 \
+  --generation-config vllm \
+  --kv-cache-dtype auto \
+  --max-num-seqs 64 \
+  --max-num-batched-tokens 8192 \
+  --enable-prefix-caching \
+  --enable-chunked-prefill</pre>
+          <p class="example-caption">Example: 1 GPU · balanced profile. Review before running.</p>
+        </div>
+        <a class="feature-action" href="#workflow" data-workflow="serve">See the configuration workflow <span>→</span></a>
+      </article>
+      <article class="feature-card">
+        <div class="card-top"><span class="feature-icon" aria-hidden="true">↗</span><span>03 / BENCHMARK</span></div>
+        <h3>Find your sustainable load.</h3>
+        <p>Sweep the load. See where throughput stops scaling.</p>
+        <div class="feature-example">
+          <p class="example-label">ILLUSTRATIVE CONCURRENCY SWEEP</p>
+          <div class="load-preview"><div><span>Workers</span><strong>8</strong><strong>16</strong><strong>32</strong></div><div><span>Output TPS</span><b>420</b><b>760</b><b>790</b></div></div>
+          <p class="saturation-preview">16 workers <span>Last healthy level</span></p>
+          <p class="example-caption">+3.9% throughput at 32 workers · sample data.</p>
+        </div>
+        <a class="feature-action" href="#workflow" data-workflow="benchmark">See the benchmark command <span>→</span></a>
+      </article>
+    </div><p class="estimate-note">Estimates exclude KV cache and runtime memory. Verify by running your model.</p></section>
+    <section class="workflow wrap section" id="workflow"><div class="workflow-copy"><p class="eyebrow">02 / YOUR TERMINAL. YOUR WORKFLOW.</p><h2>From “will it run?”<br>to “how far can it go?”</h2><p>Choose a step. Copy the command. Run it locally.</p><div class="steps" role="tablist" aria-orientation="vertical" aria-label="Workflow commands"><button id="tab-recommend" class="step active" role="tab" aria-selected="true" aria-controls="command-panel" data-step="recommend"><span>01</span><div><strong>Find your model</strong><small>A family name in. A ranked shortlist out.</small></div><b>↗</b></button><button id="tab-check" class="step" role="tab" tabindex="-1" aria-selected="false" aria-controls="command-panel" data-step="check"><span>02</span><div><strong>Check your model</strong><small>Inspect hardware and estimate feasibility.</small></div><b>↗</b></button><button id="tab-serve" class="step" role="tab" aria-selected="false" aria-controls="command-panel" tabindex="-1" data-step="serve"><span>03</span><div><strong>Configure & serve</strong><small>Use the recommended vLLM command.</small></div><b>↗</b></button><button id="tab-benchmark" class="step" role="tab" aria-selected="false" aria-controls="command-panel" tabindex="-1" data-step="benchmark"><span>04</span><div><strong>Find your operating point</strong><small>Run a sweep and explore the results.</small></div><b>↗</b></button></div></div><div class="terminal" id="command-panel" role="tabpanel" aria-labelledby="tab-recommend" tabindex="0"><div class="terminal-bar"><span class="window-dots"><i></i><i></i><i></i></span><span>infercap — terminal</span><button class="copy-button" id="copy-workflow" aria-label="Copy workflow command">Copy command</button></div><div class="terminal-content"><p class="terminal-comment" id="terminal-comment"># Start with the hardware you have.</p><pre id="terminal-command"></pre><div class="recommend-demo" id="recommend-demo">
+  <div class="shortlist">
+    <div class="shortlist-header"><span>MODEL SHORTLIST</span><span class="shortlist-example">SAMPLE OUTPUT</span></div>
+    <div class="shortlist-context"><span>Qwen family</span><span>24 GiB free</span><span>FP16</span></div>
+    <article class="shortlist-model shortlist-pick">
+      <div class="shortlist-rank">01</div><div class="shortlist-info"><span class="shortlist-kicker">LIKELY FIT</span><strong>Qwen2.5-7B<span>-Instruct</span></strong><div class="shortlist-memory"><i style="width:62.5%"></i></div><small>~15.0 GiB weights <span>/ 24 GiB free</span></small></div><span class="shortlist-status" aria-label="Estimated fit">✓</span>
+    </article>
+    <article class="shortlist-model">
+      <div class="shortlist-rank">02</div><div class="shortlist-info"><strong>Qwen2.5-14B<span>-Instruct</span></strong><small>~30.0 GiB weights</small></div><span class="shortlist-no-fit">NO FIT</span>
+    </article>
+    <div class="shortlist-bottom"><span>Hub discovery</span><span>vLLM compatibility</span><span>Memory estimates</span></div>
+  </div>
+  <p class="demo-disclaimer">Illustrative shortlist, not live results. Run locally for your hardware. Estimates exclude KV cache and runtime memory.</p>
+</div><div class="terminal-output" id="terminal-output"></div><div class="terminal-prompt"><span>❯</span><i></i></div></div><div class="terminal-footer"><span class="status-dot"></span><span id="terminal-caption">Illustrative output · results depend on your environment</span><span>bash</span></div></div></section>
     <section class="quickstart wrap" id="quickstart"><div><p class="eyebrow">03 / MAKE EVERY GPU COUNT</p><h2>Your next inference run<br>starts with a little clarity.</h2><p>Open source. Hardware aware. Built for developers.</p><a class="button primary" href="https://github.com/nguyenvmthien/infercap">Explore the repository <span>↗</span></a><a class="text-link" href="https://github.com/nguyenvmthien/infercap/blob/master/README.md">Read the docs →</a></div><div class="setup"><div><span>01 / CLONE & INSTALL</span><button class="copy-button" data-copy="git clone https://github.com/nguyenvmthien/infercap.git&#10;cd infercap&#10;uv sync" aria-label="Copy setup commands">Copy setup</button></div><pre><span>$</span> git clone https://github.com/nguyenvmthien/infercap.git
 <span>$</span> cd infercap
-<span>$</span> uv sync</pre><p>Requires Python 3.12+ and a compatible vLLM / PyTorch platform.</p><a class="setup-next" href="#workflow">02 / Check your first model <span>→</span></a></div></section>
+<span>$</span> uv sync</pre><p>Requires Python 3.12+ and a compatible vLLM / PyTorch platform.</p><a class="setup-next" href="#workflow">02 / Find a model for your GPU <span>→</span></a></div></section>
   </main>
   <footer class="wrap"><a class="brand" href="#"><span class="brand-symbol">▰</span>infercap<span class="brand-period">.</span></a><p>Know your hardware. Own your inference.</p><div><a href="https://github.com/nguyenvmthien/infercap/blob/master/LICENSE">Apache 2.0</a><a href="https://github.com/nguyenvmthien/infercap/blob/master/CONTRIBUTING.md">Contribute ↗</a><a href="https://github.com/nguyenvmthien/infercap">GitHub ↗</a></div></footer>
   <div id="toast" role="status" aria-live="polite"></div><script src="app.js"></script>

@@ -30,7 +30,7 @@ uv run infercap benchmark \
   --concurrency 1,4,8,16,32,64
 ```
 
-Use `infercap check` for preflight checks and `infercap benchmark` for benchmarking. Run `uv sync` after updating to install the renamed commands.
+Use `infercap check` for preflight checks and `infercap benchmark` for benchmarking. Run `uv sync` after updating to install the package. `uv run python -m infercap` invokes the same CLI; internal Python imports now use `infercap.*`.
 
 ## Preflight and exact model checks
 
