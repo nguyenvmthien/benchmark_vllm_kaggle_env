@@ -1638,7 +1638,7 @@ wheels = [
 [[package]]
 name = "infercap"
 version = "0.2.0"
-source = { virtual = "." }
+source = { editable = "." }
 dependencies = [
     { name = "aiohttp" },
     { name = "matplotlib" },
