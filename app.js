@@ -1,10 +1,83 @@
-const BUILTIN=[{label:'Burst · 512 max',url:'benchmark_output/benchmark_20260904T071141Z.json'},{label:'Burst · 128 max',url:'benchmark_output/benchmark_20260904T070916Z.json'},{label:'Concurrency sweep',url:'benchmark_output/benchmark_20260904T064516Z.json'}],state={report:null,source:null,metric:'ttft',imports:[]};
-const $=id=>document.getElementById(id),level=x=>x.load_value??x.concurrency??x.offered_requests_per_second??0,fmt=(n,d=1)=>Number.isFinite(+n)?(+n).toLocaleString('en-US',{maximumFractionDigits:d}):'—',sec=n=>Number.isFinite(+n)?`${fmt(n,n<.1?3:2)}s`:'—',mode=m=>({burst:'Burst size','request-rate':'Offered RPS',concurrency:'Concurrency'}[m]||'Concurrency');
-function valid(r){if(!r||!Array.isArray(r.levels)||!r.levels.length||!r.config||!r.saturation)throw Error('JSON is not a valid benchmark report.');return r}
-async function load(s){try{let r=s.data||await fetch(s.url).then(x=>{if(!x.ok)throw Error('Could not load report.');return x.json()});state.report=valid(r);state.source=s;render()}catch(e){toast(e.message)}}
-function render(){let r=state.report,l=r.levels,c=r.config,m=c.mode||l[0].mode||'concurrency',best=l.reduce((a,b)=>b.throughput_tps>a.throughput_tps?b:a),rec=l.find(x=>+level(x)===+r.saturation.level)||best,g=l.filter(x=>x.gpu?.available),failed=l.reduce((n,x)=>n+(x.failed_requests||0),0);$('date').textContent=`${new Date(r.created_at).toLocaleString()} · ${l.length} load levels`;$('recLabel').textContent=r.saturation.found?'Recommended operating point':'Highest tested operating point';$('rec').textContent=`${mode(m)} ${r.saturation.level}`;$('reason').textContent=r.saturation.reason;$('icon').textContent=r.saturation.found?'↗':'✓';$('load').textContent=mode(m);let cards=[['Peak output',`${fmt(best.throughput_tps)} TPS`,`at ${mode(m).toLowerCase()} ${level(best)}`],['Recommended throughput',`${fmt(rec.throughput_tps)} TPS`,`${fmt(rec.request_throughput_rps,2)} requests / sec`],['Peak GPU / VRAM',g.length?`${fmt(Math.max(...g.map(x=>x.gpu.max_utilization_pct)),0)}%`:'Unavailable',g.length?`${fmt(Math.max(...g.map(x=>x.gpu.max_vram_used_mb))/1024,1)} GiB max VRAM`:'No telemetry captured'],['Request health',failed?`${failed} failed`:'100% success',`${fmt(l.reduce((n,x)=>n+x.requests,0),0)} total requests`]];$('cards').innerHTML=cards.map(x=>`<article class="card"><small>${x[0]}</small><strong>${x[1]}</strong><span>${x[2]}</span></article>`).join('');chart($('throughput'),l,[{get:x=>x.throughput_tps},{get:x=>x.request_throughput_rps,second:true,own:true}]);latency();gpu();rows()}
-function chart(el,data,series){if(!data.length){el.innerHTML='<div class="empty">No data</div>';return}let W=900,H=255,p={l:45,r:18,t:15,b:28},iw=W-p.l-p.r,ih=H-p.t-p.b,all=series.flatMap(s=>data.map(s.get)),global=Math.max(...all,1),max=series.map(s=>s.own?Math.max(...data.map(s.get),1):global),x=i=>p.l+(data.length===1?iw/2:i*iw/(data.length-1)),y=(v,m)=>p.t+ih-v/m*ih,out=`<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">`;for(let i=0;i<5;i++){let yy=p.t+i*ih/4;out+=`<line class="gridline" x1="${p.l}" y1="${yy}" x2="${W-p.r}" y2="${yy}"/><text class="axis" x="${p.l-8}" y="${yy+3}" text-anchor="end">${fmt(global*(1-i/4),0)}</text>`}data.forEach((d,i)=>out+=`<text class="axis" x="${x(i)}" y="${H-5}" text-anchor="middle">${fmt(level(d),1)}</text>`);series.forEach((s,j)=>{let pts=data.map((d,i)=>`${x(i)},${y(s.get(d),max[j])}`).join(' ');if(!j)out+=`<polygon class="area" points="${p.l},${p.t+ih} ${pts} ${W-p.r},${p.t+ih}"/>`;out+=`<polyline class="line ${s.second?'second':''}" points="${pts}"/>`;data.forEach((d,i)=>out+=`<circle class="point ${s.second?'second':''}" cx="${x(i)}" cy="${y(s.get(d),max[j])}" r="3.5"><title>Load ${level(d)}: ${fmt(s.get(d),2)}</title></circle>`) });el.innerHTML=out+'</svg>'}
-function latency(){let m=state.metric;chart($('latency'),state.report.levels,[{get:x=>x[m]?.p50||0},{get:x=>x[m]?.p95||0,second:true}])}function gpu(){let l=state.report.levels;if(!l.some(x=>x.gpu?.available)){$('gpu').innerHTML='<div class="empty">GPU telemetry unavailable</div>';return}chart($('gpu'),l,[{get:x=>x.gpu?.avg_utilization_pct||0},{get:x=>x.gpu?.max_vram_utilization_pct||0,second:true}])}
-function rows(){let r=state.report,s=r.saturation;$('rows').innerHTML=r.levels.map(x=>{let label='Healthy',cl='';if(x.failed_requests){label='Errors';cl='bad'}else if(s.found&&+level(x)>=+s.trigger_level){label='Saturated';cl='warn'}return `<tr><td>${fmt(level(x),1)}</td><td>${x.successful_requests}/${x.requests}</td><td>${fmt(x.throughput_tps)}</td><td>${fmt(x.request_throughput_rps,2)}</td><td>${sec(x.ttft?.p95)}</td><td>${sec(x.latency?.p95)}</td><td>${x.gpu?.available?fmt(x.gpu.avg_utilization_pct)+'%':'—'}</td><td>${x.gpu?.available?fmt(x.gpu.max_vram_used_mb/1024)+' GiB':'—'}</td><td><span class="tag ${cl}">${label}</span></td></tr>`}).join('')}
-function choices(){let a=[...state.imports,...BUILTIN];$('reports').innerHTML=a.map((x,i)=>`<option value="${i}">${x.label}</option>`).join('');$('reports').onchange=e=>load(a[+e.target.value])}function importFile(f){if(!f)return;let rd=new FileReader;rd.onload=()=>{try{let s={label:`Imported · ${f.name}`,data:valid(JSON.parse(rd.result))};state.imports.unshift(s);choices();load(s);toast('Report imported successfully.')}catch(e){toast(e.message)}};rd.readAsText(f)}function toast(t){$('toast').textContent=t;$('toast').classList.add('show');setTimeout(()=>$('toast').classList.remove('show'),2500)}
-$('upload').onclick=()=>$('file').click();$('file').onchange=e=>importFile(e.target.files[0]);$('latencyTabs').onclick=e=>{if(!e.target.dataset.m)return;state.metric=e.target.dataset.m;document.querySelectorAll('.tabs button').forEach(b=>b.classList.toggle('active',b===e.target));latency()};$('download').onclick=()=>{let a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(state.report,null,2)],{type:'application/json'}));a.download='vllm-benchmark.json';a.click();URL.revokeObjectURL(a.href)};let depth=0;window.ondragenter=e=>{e.preventDefault();depth++;$('drop').classList.add('show')};window.ondragleave=()=>{if(!--depth)$('drop').classList.remove('show')};window.ondragover=e=>e.preventDefault();window.ondrop=e=>{e.preventDefault();depth=0;$('drop').classList.remove('show');importFile(e.dataTransfer.files[0])};choices();load(BUILTIN[0]);
+'use strict';
+const workflows = {
+  check: {
+    comment: '# Start with the hardware you have.',
+    command: 'uv run benchmark-vllm-check \\\n  --model mistralai/Mistral-7B-Instruct-v0.3',
+    lines: [['PASS', 'Python, PyTorch & vLLM'], ['PASS', 'NVIDIA GPU detected'], ['PASS', 'Model architecture supported'], ['INFO', 'Model-weight memory estimated']],
+    note: 'Next → review the recommended serving command.',
+    caption: 'Illustrative output · results depend on your environment'
+  },
+  serve: {
+    comment: '# Request a serving profile for your model.',
+    command: 'uv run benchmark-vllm-check \\\n  --model mistralai/Mistral-7B-Instruct-v0.3 \\\n  --profile balanced',
+    lines: [['01', 'Review the generated vllm serve command.'], ['02', 'Run that command in a separate terminal.'], ['03', 'Check the served model with --check-server.']],
+    note: 'Recommendations are starting points; start the server yourself.',
+    caption: 'Workflow guide · preflight does not start the server'
+  },
+  benchmark: {
+    comment: '# With your model server running, sweep the load.',
+    command: 'uv run benchmark-vllm \\\n  --model mistralai/Mistral-7B-Instruct-v0.3 \\\n  --concurrency 1,4,8,16,32,64',
+    lines: [['→', 'Measure output TPS, RPS & latency.'], ['→', 'Sample available GPU and vLLM telemetry.'], ['→', 'Analyze saturation across tested levels.'], ['→', 'Export JSON + PNG to benchmark_output/.']],
+    note: 'Review the JSON report and generated PNG dashboard.',
+    caption: 'Workflow guide · requires a running compatible endpoint'
+  }
+};
+let activeStep = 'check';
+const tabs = [...document.querySelectorAll('[data-step]')];
+function selectStep(key) {
+  activeStep = key;
+  const workflow = workflows[key];
+  tabs.forEach(tab => {
+    const selected = tab.dataset.step === key;
+    tab.classList.toggle('active', selected);
+    tab.setAttribute('aria-selected', String(selected));
+    tab.tabIndex = selected ? 0 : -1;
+  });
+  document.getElementById('command-panel').setAttribute('aria-labelledby', `tab-${key}`);
+  document.getElementById('terminal-comment').textContent = workflow.comment;
+  document.getElementById('terminal-command').textContent = workflow.command;
+  document.getElementById('terminal-caption').textContent = workflow.caption;
+  const output = document.getElementById('terminal-output');
+  output.replaceChildren();
+  workflow.lines.forEach(([label, text]) => {
+    const line = document.createElement('p');
+    const badge = document.createElement('b');
+    badge.textContent = `[${label}]`;
+    line.append(badge, text);
+    output.append(line);
+  });
+  const note = document.createElement('p');
+  note.className = 'output-note';
+  note.textContent = workflow.note;
+  output.append(note);
+}
+tabs.forEach((tab, index) => {
+  tab.addEventListener('click', () => selectStep(tab.dataset.step));
+  tab.addEventListener('keydown', event => {
+    let next;
+    if (event.key === 'ArrowRight' || event.key === 'ArrowDown') next = (index + 1) % tabs.length;
+    if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') next = (index + tabs.length - 1) % tabs.length;
+    if (event.key === 'Home') next = 0;
+    if (event.key === 'End') next = tabs.length - 1;
+    if (next === undefined) return;
+    event.preventDefault();
+    selectStep(tabs[next].dataset.step);
+    tabs[next].focus();
+  });
+});
+let toastTimer;
+async function copyCommand(text) {
+  const toast = document.getElementById('toast');
+  try {
+    await navigator.clipboard.writeText(text);
+    toast.textContent = 'Command copied to clipboard';
+  } catch {
+    toast.textContent = 'Clipboard unavailable. Select and copy the command manually.';
+  }
+  clearTimeout(toastTimer);
+  toast.classList.add('show');
+  toastTimer = setTimeout(() => toast.classList.remove('show'), 3200);
+}
+document.querySelectorAll('[data-copy]').forEach(button => button.addEventListener('click', () => copyCommand(button.dataset.copy)));
+document.getElementById('copy-workflow').addEventListener('click', () => copyCommand(workflows[activeStep].command));
+selectStep(activeStep);
