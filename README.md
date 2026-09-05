@@ -1,6 +1,12 @@
 # InferCap
 
-InferCap is an open-source toolkit for checking inference feasibility, selecting a serving configuration, verifying a deployment, and measuring its capacity. The current implementation supports **NVIDIA GPUs and vLLM**.
+InferCap is a CLI toolkit for LLM inference preflight, serving configuration, deployment verification, benchmarking, telemetry, and capacity analysis. It helps answer whether a model fits the available hardware, how to serve it, whether the endpoint is usable, and how it behaves under load.
+
+The current implementation supports **NVIDIA GPUs and vLLM**. Its workflow is:
+
+`Model → Check → Serve → Verify → Benchmark → Analyze`
+
+Start with the [quick start](#quick-start), then see the [architecture guide](docs/architecture.md) and [contribution guide](CONTRIBUTING.md).
 
 Current capabilities include preflight checks, Hugging Face model-family discovery, static model-weight memory estimates, recommended `vllm serve` commands, endpoint verification, three benchmark modes, GPU and vLLM telemetry, saturation analysis, and JSON/PNG output artifacts.
 
@@ -118,6 +124,7 @@ InferCap does not currently support other hardware backends or inference runtime
 uv sync
 uv run python -m unittest discover -s tests -v
 uv run python -m compileall -q src scripts tests
+uvx flake8 src scripts tests --count --select=E9,F63,F7,F82 --show-source --statistics
 ```
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for contribution guidance and [docs/architecture.md](docs/architecture.md) for the current and target architecture.

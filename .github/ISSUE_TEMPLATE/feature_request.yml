@@ -6,22 +6,22 @@ body:
   - type: textarea
     id: problem
     attributes:
-      label: Problem or use case
-      description: What are you trying to accomplish, and why is the current behavior insufficient?
+      label: Problem
+      description: What user or maintainer problem should this address?
     validations:
       required: true
   - type: textarea
-    id: behavior
+    id: motivation
     attributes:
-      label: Proposed behavior
-      description: Describe the desired user-visible outcome.
+      label: Motivation
+      description: Why is this problem important, and who benefits?
     validations:
       required: true
   - type: textarea
     id: scope
     attributes:
-      label: Affected hardware or runtime
-      description: Identify the hardware and inference runtime involved, if any.
+      label: Proposed scope
+      description: Describe the desired outcome and identify affected hardware or runtime, if any.
       placeholder: NVIDIA GPU and vLLM
     validations:
       required: true
@@ -30,6 +30,15 @@ body:
     attributes:
       label: Alternatives considered
       description: Describe workarounds or other approaches you evaluated.
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      description: List the observable conditions that would make this request complete.
+      placeholder: |
+        - [ ] ...
     validations:
       required: true
   - type: checkboxes

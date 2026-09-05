@@ -6,6 +6,9 @@ dist/
 wheels/
 *.egg-info
 
+# Generated benchmark reports and dashboards
+benchmark_output/*
+
 # Virtual environments
 .venv
 

@@ -28,6 +28,13 @@ body:
     validations:
       required: true
   - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: Briefly describe the incorrect behavior and its impact.
+    validations:
+      required: true
+  - type: textarea
     id: hardware
     attributes:
       label: Hardware

@@ -19,8 +19,11 @@ Run the project checks before submitting a pull request:
 ```bash
 uv run python -m unittest discover -s tests -v
 uv run python -m compileall -q src scripts tests
+uvx flake8 src scripts tests --count --select=E9,F63,F7,F82 --show-source --statistics
 git diff --check
 ```
+
+The repository does not currently configure a type checker. The CI workflow also runs a non-blocking style report; keep new code within its reported line-length and complexity guidance where practical.
 
 ## Issues and scope
 
