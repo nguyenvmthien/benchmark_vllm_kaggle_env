@@ -31,9 +31,47 @@ const workflows = {
 };
 let activeStep = 'recommend';
 const tabs = [...document.querySelectorAll('[data-step]')];
+const benchmarkModes = {
+  concurrency: {
+    command: `uv run infercap benchmark \
+  --model mistralai/Mistral-7B-Instruct-v0.3 \
+  --mode concurrency \
+  --concurrency 1,4,8,16,32,64`,
+    answer: '<b>ANSWER</b> Last healthy level: <strong>16 concurrent requests</strong><br><span>Throughput growth falls below 10% at the next level.</span>'
+  },
+  burst: {
+    command: `uv run infercap benchmark \
+  --model mistralai/Mistral-7B-Instruct-v0.3 \
+  --mode burst \
+  --burst-sizes 8,16,32,64`,
+    answer: '<b>ANSWER</b> Burst ceiling: <strong>32 requests</strong><br><span>Use this to expose queueing and error behavior under a sudden spike.</span>'
+  },
+  'request-rate': {
+    command: `uv run infercap benchmark \
+  --model mistralai/Mistral-7B-Instruct-v0.3 \
+  --mode request-rate \
+  --request-rates 1,4,8,16 \
+  --rate-duration 60`,
+    answer: '<b>ANSWER</b> Sustainable offered rate: <strong>8 requests / sec</strong><br><span>At 16 RPS, TTFT p95 crosses the configured threshold.</span>'
+  }
+};
+let activeBenchmarkMode = 'concurrency';
+function updateBenchmarkMode(mode) {
+  activeBenchmarkMode = mode;
+  document.querySelectorAll('[data-mode]').forEach(button => {
+    const active = button.dataset.mode === mode;
+    button.classList.toggle('active', active);
+    button.setAttribute('aria-pressed', String(active));
+  });
+  const item = benchmarkModes[mode];
+  document.getElementById('terminal-command').textContent = item.command;
+  document.getElementById('benchmark-answer').innerHTML = item.answer;
+}
 function selectStep(key) {
   activeStep = key;
   document.getElementById('recommend-demo').hidden = key !== 'recommend';
+  document.getElementById('benchmark-modes').hidden = key !== 'benchmark';
+  document.getElementById('benchmark-answer').hidden = key !== 'benchmark';
   const workflow = workflows[key];
   tabs.forEach(tab => {
     const selected = tab.dataset.step === key;
@@ -43,7 +81,7 @@ function selectStep(key) {
   });
   document.getElementById('command-panel').setAttribute('aria-labelledby', `tab-${key}`);
   document.getElementById('terminal-comment').textContent = workflow.comment;
-  document.getElementById('terminal-command').textContent = workflow.command;
+  document.getElementById('terminal-command').textContent = key === 'benchmark' ? benchmarkModes[activeBenchmarkMode].command : workflow.command;
   document.getElementById('terminal-caption').textContent = workflow.caption;
   const output = document.getElementById('terminal-output');
   output.replaceChildren();
@@ -88,6 +126,8 @@ async function copyCommand(text) {
 }
 document.querySelectorAll('[data-copy]').forEach(button => button.addEventListener('click', () => copyCommand(button.dataset.copy)));
 document.getElementById('copy-workflow').addEventListener('click', () => copyCommand(workflows[activeStep].command));
+document.querySelectorAll('[data-mode]').forEach(button => button.addEventListener('click', () => updateBenchmarkMode(button.dataset.mode)));
+updateBenchmarkMode(activeBenchmarkMode);
 selectStep(activeStep);
 
 // Feature cards open the matching example, including for keyboard users.
