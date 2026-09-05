@@ -19,25 +19,25 @@ The environment includes vLLM and requires a platform on which the configured vL
 Check an exact model against the local environment and detected GPUs:
 
 ```bash
-uv run benchmark-vllm-check --model mistralai/Mistral-7B-Instruct-v0.3
+uv run infercap check --model mistralai/Mistral-7B-Instruct-v0.3
 ```
 
 If the checks pass, the output includes a recommended `vllm serve` command. Start it, then benchmark the OpenAI-compatible endpoint:
 
 ```bash
-uv run benchmark-vllm \
+uv run infercap benchmark \
   --model mistralai/Mistral-7B-Instruct-v0.3 \
   --concurrency 1,4,8,16,32,64
 ```
 
-The existing `benchmark-vllm-check` and `benchmark-vllm` command names are retained for compatibility.
+Use `infercap check` for preflight checks and `infercap benchmark` for benchmarking. Run `uv sync` after updating to install the renamed commands.
 
 ## Preflight and exact model checks
 
 Preflight checks Python, PyTorch, vLLM, system memory, NVIDIA GPUs, model architecture, and estimated model-weight memory. It reports `PASS`, `WARN`, and `FAIL` results and exits non-zero for hard failures. Model size comes from Hugging Face safetensors metadata when available. Cached or local models can use offline mode and an explicit parameter count:
 
 ```bash
-uv run benchmark-vllm-check \
+uv run infercap check \
   --model ./models/example-model \
   --offline --model-size-b 7 --quantization awq
 ```
@@ -51,7 +51,7 @@ The memory calculation estimates weights plus 15% loading overhead using current
 A family name triggers a Hugging Face Hub search. InferCap filters candidates using the installed vLLM architecture registry, estimates weight memory, ranks candidates, and selects a likely fit:
 
 ```bash
-uv run benchmark-vllm-check Qwen --recommend-limit 5
+uv run infercap check Qwen --recommend-limit 5
 ```
 
 Family discovery requires Hub access. Exact cached model checks can use `--offline`.
@@ -67,7 +67,7 @@ Recommendations are configuration starting points. They do not start the server 
 Add `--check-server` to query `/v1/models` and confirm that the requested model ID is present:
 
 ```bash
-uv run benchmark-vllm-check \
+uv run infercap check \
   --model mistralai/Mistral-7B-Instruct-v0.3 \
   --check-server --api-url http://localhost:8000/v1/chat/completions
 ```
@@ -117,7 +117,7 @@ InferCap does not currently support other hardware backends or inference runtime
 ```bash
 uv sync
 uv run python -m unittest discover -s tests -v
-uv run python -m compileall -q src main.py tests
+uv run python -m compileall -q src scripts tests
 ```
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for contribution guidance and [docs/architecture.md](docs/architecture.md) for the current and target architecture.

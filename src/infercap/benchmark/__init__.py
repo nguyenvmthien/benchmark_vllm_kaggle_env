@@ -1,0 +1,1 @@
+"""InferCap benchmark functionality."""

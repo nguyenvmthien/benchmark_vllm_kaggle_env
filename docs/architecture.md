@@ -4,11 +4,11 @@ This document distinguishes the code that exists today from the intended v0.1 ar
 
 ## Current architecture
 
-InferCap currently has two public console scripts and a compatibility entry point:
+InferCap exposes one console script, `infercap`, through `src.cli:main`, with two subcommands:
 
-- `benchmark-vllm-check` calls `src.scripts.check_runable:main` for preflight, discovery, recommendation, and endpoint checks.
-- `benchmark-vllm` calls `src.benchmark.main:main` for load generation, measurement, analysis, and reports.
-- `main.py` also invokes the benchmark entry point.
+- `infercap check` calls `src.scripts.check_runable:main` for preflight, discovery, recommendation, and endpoint checks.
+- `infercap benchmark` calls `src.benchmark.main:main` for load generation, measurement, analysis, and reports.
+- `main.py` also invokes the shared CLI. Running `infercap` without a subcommand displays help.
 
 The current implementation is organized as follows:
 

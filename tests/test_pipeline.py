@@ -3,7 +3,8 @@ import unittest
 from pathlib import Path
 from unittest.mock import AsyncMock, patch
 
-from src.benchmark.main import BenchmarkConfig, parse_rates, run
+from infercap.benchmark.runner import BenchmarkConfig, run
+from infercap.benchmark.cli import parse_rates
 
 
 class PipelineTests(unittest.IsolatedAsyncioTestCase):
@@ -22,10 +23,10 @@ class PipelineTests(unittest.IsolatedAsyncioTestCase):
                  "throughput_tps": 1, "error_rate": 0, "ttft": {"p95": 0.1}}
         with (
             tempfile.TemporaryDirectory() as directory,
-            patch("src.benchmark.main.warm_up", new=AsyncMock()),
-            patch("src.benchmark.main.run_scheduled_level",
+            patch("infercap.benchmark.runner.warm_up", new=AsyncMock()),
+            patch("infercap.benchmark.runner.run_scheduled_level",
                   new=AsyncMock(return_value=level)) as scheduled,
-            patch("src.benchmark.main.plot_report"),
+            patch("infercap.benchmark.runner.plot_report"),
         ):
             await run(config, Path(directory))
             scheduled.assert_awaited_once()
@@ -55,12 +56,12 @@ class PipelineTests(unittest.IsolatedAsyncioTestCase):
 
         with (
             tempfile.TemporaryDirectory() as directory,
-            patch("src.benchmark.main.warm_up", new=AsyncMock()),
+            patch("infercap.benchmark.runner.warm_up", new=AsyncMock()),
             patch(
-                "src.benchmark.main.run_level",
+                "infercap.benchmark.runner.run_level",
                 new=AsyncMock(return_value=level),
             ),
-            patch("src.benchmark.main.plot_report") as plot_report,
+            patch("infercap.benchmark.runner.plot_report") as plot_report,
         ):
             report_path = await run(config, Path(directory))
             self.assertTrue(report_path.exists())

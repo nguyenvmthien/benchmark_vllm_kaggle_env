@@ -1,6 +1,6 @@
 import argparse
 import unittest
-from src.scripts.check_runable import (
+from infercap.preflight.checks import (
     detect_quantization, infer_runner, inference_recommendation,
     resolve_model_size_b, serve_command,
 )

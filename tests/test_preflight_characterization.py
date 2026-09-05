@@ -9,7 +9,8 @@ from contextlib import redirect_stdout
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
-from src.scripts.check_runable import (
+from infercap.preflight.cli import main
+from infercap.preflight.checks import (
     Check,
     InferenceRecommendation,
     ModelCandidate,
@@ -17,7 +18,6 @@ from src.scripts.check_runable import (
     check_server,
     detect_quantization,
     discover_family,
-    main,
     run_checks,
 )
 
@@ -64,11 +64,11 @@ class PreflightReadinessTests(unittest.TestCase):
             "compute_capability": "8.0",
         }]
         with (
-            patch("src.scripts.check_runable.package_version", return_value="1.0"),
-            patch("src.scripts.check_runable.system_memory_gib", return_value=32.0),
-            patch("src.scripts.check_runable.query_gpus", return_value=(gpu, None)),
+            patch("infercap.preflight.checks.package_version", return_value="1.0"),
+            patch("infercap.preflight.checks.system_memory_gib", return_value=32.0),
+            patch("infercap.preflight.checks.query_gpus", return_value=(gpu, None)),
             patch(
-                "src.scripts.check_runable.check_model_compatibility",
+                "infercap.preflight.checks.check_model_compatibility",
                 return_value=Check("model_compatibility", compatibility, "compatibility result"),
             ),
         ):
@@ -85,8 +85,8 @@ class PreflightReadinessTests(unittest.TestCase):
         args = preflight_args(as_json=True)
         checks = [Check("python", "PASS", "3.12"), Check("gpu", "FAIL", "missing")]
         with (
-            patch("src.scripts.check_runable.parse_args", return_value=args),
-            patch("src.scripts.check_runable.run_checks", return_value=(checks, [], [])),
+            patch("infercap.preflight.cli.parse_args", return_value=args),
+            patch("infercap.preflight.cli.run_checks", return_value=(checks, [], [])),
             redirect_stdout(io.StringIO()) as output,
         ):
             status = main()
@@ -99,8 +99,8 @@ class PreflightReadinessTests(unittest.TestCase):
         args = preflight_args(as_json=True)
         checks = [Check("weight_memory", "WARN", "unknown")]
         with (
-            patch("src.scripts.check_runable.parse_args", return_value=args),
-            patch("src.scripts.check_runable.run_checks", return_value=(checks, [], [])),
+            patch("infercap.preflight.cli.parse_args", return_value=args),
+            patch("infercap.preflight.cli.run_checks", return_value=(checks, [], [])),
             redirect_stdout(io.StringIO()) as output,
         ):
             status = main()
@@ -118,10 +118,10 @@ class PreflightReadinessTests(unittest.TestCase):
              "memory_free_mib": 10240, "compute_capability": "8.0"},
         ]
         with (
-            patch("src.scripts.check_runable.package_version", return_value="1.0"),
-            patch("src.scripts.check_runable.system_memory_gib", return_value=32.0),
-            patch("src.scripts.check_runable.query_gpus", return_value=(gpus, None)),
-            patch("src.scripts.check_runable.check_model_compatibility",
+            patch("infercap.preflight.checks.package_version", return_value="1.0"),
+            patch("infercap.preflight.checks.system_memory_gib", return_value=32.0),
+            patch("infercap.preflight.checks.query_gpus", return_value=(gpus, None)),
+            patch("infercap.preflight.checks.check_model_compatibility",
                   return_value=Check("model_compatibility", "PASS", "supported")),
         ):
             checks, _, _ = run_checks(args)
@@ -141,19 +141,19 @@ class PreflightReadinessTests(unittest.TestCase):
 
 
 class ModelResolutionAndRankingTests(unittest.TestCase):
-    @patch("src.scripts.check_runable.discover_family")
+    @patch("infercap.preflight.checks.discover_family")
     def test_bare_model_name_is_resolved_as_family(self, discover):
         candidate = ModelCandidate("Qwen/Qwen-Instruct-AWQ", 7.0, "text-generation",
                                    ["Supported"], "awq", 100, 4.0, True, 1.0)
         discover.return_value = ([candidate], None)
         args = preflight_args(model="Qwen", model_size_b=7.0)
         with (
-            patch("src.scripts.check_runable.package_version", return_value="1.0"),
-            patch("src.scripts.check_runable.system_memory_gib", return_value=32.0),
-            patch("src.scripts.check_runable.query_gpus", return_value=([{
+            patch("infercap.preflight.checks.package_version", return_value="1.0"),
+            patch("infercap.preflight.checks.system_memory_gib", return_value=32.0),
+            patch("infercap.preflight.checks.query_gpus", return_value=([{
                 "index": 0, "name": "GPU", "memory_total_mib": 16384,
                 "memory_free_mib": 16384, "compute_capability": "8.0"}], None)),
-            patch("src.scripts.check_runable.check_model_compatibility",
+            patch("infercap.preflight.checks.check_model_compatibility",
                   return_value=Check("model_compatibility", "PASS", "supported")),
         ):
             checks, _, recommendations = run_checks(args)
@@ -163,14 +163,14 @@ class ModelResolutionAndRankingTests(unittest.TestCase):
         self.assertEqual(recommendations, [candidate])
         self.assertEqual(next(x for x in checks if x.name == "family_discovery").status, "PASS")
 
-    @patch("src.scripts.check_runable.discover_family")
+    @patch("infercap.preflight.checks.discover_family")
     def test_repository_id_is_treated_as_exact_model(self, discover):
         args = preflight_args(model="Qwen/Qwen-Instruct")
         with (
-            patch("src.scripts.check_runable.package_version", return_value="1.0"),
-            patch("src.scripts.check_runable.system_memory_gib", return_value=32.0),
-            patch("src.scripts.check_runable.query_gpus", return_value=([], "no gpu")),
-            patch("src.scripts.check_runable.check_model_compatibility",
+            patch("infercap.preflight.checks.package_version", return_value="1.0"),
+            patch("infercap.preflight.checks.system_memory_gib", return_value=32.0),
+            patch("infercap.preflight.checks.query_gpus", return_value=([], "no gpu")),
+            patch("infercap.preflight.checks.check_model_compatibility",
                   return_value=Check("model_compatibility", "PASS", "supported")),
         ):
             checks, _, recommendations = run_checks(args)
@@ -279,12 +279,12 @@ class JsonAndEndpointTests(unittest.TestCase):
         candidates = [ModelCandidate("org/model", 7, "text-generation", ["Arch"], None, 1)]
         recommendation = InferenceRecommendation("balanced", {"dtype": "float16"}, ["reason"])
         with (
-            patch("src.scripts.check_runable.parse_args", return_value=args),
-            patch("src.scripts.check_runable.run_checks",
+            patch("infercap.preflight.cli.parse_args", return_value=args),
+            patch("infercap.preflight.cli.run_checks",
                   return_value=(checks, gpus, candidates)),
-            patch("src.scripts.check_runable.inference_recommendation",
+            patch("infercap.preflight.cli.inference_recommendation",
                   return_value=recommendation),
-            patch("src.scripts.check_runable.serve_command", return_value="vllm serve org/model"),
+            patch("infercap.preflight.cli.serve_command", return_value="vllm serve org/model"),
             redirect_stdout(io.StringIO()) as output,
         ):
             status = main()
@@ -312,7 +312,7 @@ class JsonAndEndpointTests(unittest.TestCase):
 
     def test_chat_completions_url_is_replaced_with_models_and_matching_model_passes(self):
         response = self.response({"data": [{"id": "org/model"}]})
-        with patch("src.scripts.check_runable.urllib.request.urlopen",
+        with patch("infercap.preflight.checks.urllib.request.urlopen",
                    return_value=response) as urlopen:
             result = check_server(
                 "http://localhost:8000/v1/chat/completions", "org/model", 3)
@@ -320,7 +320,7 @@ class JsonAndEndpointTests(unittest.TestCase):
         self.assertEqual(result.status, "PASS")
 
     def test_base_url_appends_v1_models_and_missing_model_warns(self):
-        with patch("src.scripts.check_runable.urllib.request.urlopen",
+        with patch("infercap.preflight.checks.urllib.request.urlopen",
                    return_value=self.response({"data": [{"id": "other"}]})) as urlopen:
             result = check_server("http://localhost:8000", "org/model", 2)
         urlopen.assert_called_once_with("http://localhost:8000/v1/models", timeout=2)
@@ -328,7 +328,7 @@ class JsonAndEndpointTests(unittest.TestCase):
         self.assertIn("served=['other']", result.message)
 
     def test_endpoint_connection_error_is_fail(self):
-        with patch("src.scripts.check_runable.urllib.request.urlopen",
+        with patch("infercap.preflight.checks.urllib.request.urlopen",
                    side_effect=urllib.error.URLError("refused")):
             result = check_server("http://localhost:8000/v1/models", "org/model", 1)
         self.assertEqual(result.status, "FAIL")

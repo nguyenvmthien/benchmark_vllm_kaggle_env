@@ -16,7 +16,7 @@ Run the project checks before submitting a pull request:
 
 ```bash
 uv run python -m unittest discover -s tests -v
-uv run python -m compileall -q src main.py tests
+uv run python -m compileall -q src scripts tests
 git diff --check
 ```
 

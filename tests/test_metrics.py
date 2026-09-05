@@ -1,5 +1,5 @@
 import unittest
-from src.analyse.metrics import distribution, find_saturation, percentile
+from infercap.analysis.metrics import distribution, find_saturation, percentile
 
 class MetricsTests(unittest.TestCase):
     def test_percentiles_interpolate(self):

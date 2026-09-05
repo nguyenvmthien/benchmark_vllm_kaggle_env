@@ -1,6 +1,6 @@
 import unittest
 
-from src.benchmark.kv_cache import KVCacheMonitor, parse_prometheus
+from infercap.benchmark.vllm_metrics import KVCacheMonitor, parse_prometheus
 
 
 class KVCacheMetricsTests(unittest.TestCase):

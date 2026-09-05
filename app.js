@@ -2,21 +2,21 @@
 const workflows = {
   check: {
     comment: '# Start with the hardware you have.',
-    command: 'uv run benchmark-vllm-check \\\n  --model mistralai/Mistral-7B-Instruct-v0.3',
+    command: 'uv run infercap check \\\n  --model mistralai/Mistral-7B-Instruct-v0.3',
     lines: [['PASS', 'Python, PyTorch & vLLM'], ['PASS', 'NVIDIA GPU detected'], ['PASS', 'Model architecture supported'], ['INFO', 'Model-weight memory estimated']],
     note: 'Next → review the recommended serving command.',
     caption: 'Illustrative output · results depend on your environment'
   },
   serve: {
     comment: '# Request a serving profile for your model.',
-    command: 'uv run benchmark-vllm-check \\\n  --model mistralai/Mistral-7B-Instruct-v0.3 \\\n  --profile balanced',
+    command: 'uv run infercap check \\\n  --model mistralai/Mistral-7B-Instruct-v0.3 \\\n  --profile balanced',
     lines: [['01', 'Review the generated vllm serve command.'], ['02', 'Run that command in a separate terminal.'], ['03', 'Check the served model with --check-server.']],
     note: 'Recommendations are starting points; start the server yourself.',
     caption: 'Workflow guide · preflight does not start the server'
   },
   benchmark: {
     comment: '# With your model server running, sweep the load.',
-    command: 'uv run benchmark-vllm \\\n  --model mistralai/Mistral-7B-Instruct-v0.3 \\\n  --concurrency 1,4,8,16,32,64',
+    command: 'uv run infercap benchmark \\\n  --model mistralai/Mistral-7B-Instruct-v0.3 \\\n  --concurrency 1,4,8,16,32,64',
     lines: [['→', 'Measure output TPS, RPS & latency.'], ['→', 'Sample available GPU and vLLM telemetry.'], ['→', 'Analyze saturation across tested levels.'], ['→', 'Export JSON + PNG to benchmark_output/.']],
     note: 'Review the JSON report and generated PNG dashboard.',
     caption: 'Workflow guide · requires a running compatible endpoint'

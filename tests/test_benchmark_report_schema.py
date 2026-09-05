@@ -4,7 +4,7 @@ import unittest
 from datetime import datetime
 from pathlib import Path
 
-from src.analyse.visual import plot_report
+from infercap.analysis.plotting import plot_report
 
 
 FIXTURE = Path(__file__).parent / "fixtures" / "benchmark_report_v1.json"
