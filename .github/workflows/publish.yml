@@ -3,6 +3,7 @@ name: Publish to PyPI
 on:
   release:
     types: [published]
+  workflow_dispatch:
 
 permissions:
   id-token: write
@@ -11,14 +12,21 @@ permissions:
 jobs:
   publish:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Check out source
+        uses: actions/checkout@v4
 
-      - uses: astral-sh/setup-uv@v7
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v7
         with:
+          version: "0.11.13"
           python-version: "3.12"
+          enable-cache: true
 
-      - run: uv build
+      - name: Build distributions
+        run: uv build
 
-      - uses: pypa/gh-action-pypi-publish@release/v1
+      - name: Publish distributions
+        uses: pypa/gh-action-pypi-publish@release/v1
